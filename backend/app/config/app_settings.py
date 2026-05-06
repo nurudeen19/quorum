@@ -19,6 +19,10 @@ class AppSettings(BaseModel):
     # Database
     # ========================
     database_url: str | None = Field(default=None, alias="DATABASE_URL")
+    database_pool_size: int = Field(default=10, ge=1, le=50, alias="DATABASE_POOL_SIZE")
+    database_max_overflow: int = Field(default=20, ge=0, le=100, alias="DATABASE_MAX_OVERFLOW")
+    database_pool_timeout: int = Field(default=30, ge=1, le=300, alias="DATABASE_POOL_TIMEOUT")
+    database_pool_recycle: int = Field(default=3600, ge=300, alias="DATABASE_POOL_RECYCLE")
     
     # ========================
     # Authentication & JWT
@@ -69,5 +73,3 @@ class AppSettings(BaseModel):
     def cors_origins(self) -> list[str]:
         """Parse comma-separated CORS origins."""
         return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
-
-app_settings = AppSettings()

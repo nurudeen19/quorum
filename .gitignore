@@ -26,3 +26,4 @@ ENV/
 *.db
 *.sqlite3
 /data/
+todo.txt
