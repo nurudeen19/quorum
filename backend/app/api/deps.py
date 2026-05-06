@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.database import get_db
-from app.core.tokens import decode_access_token
+from app.core.security import decode_access_token
 from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=True)
