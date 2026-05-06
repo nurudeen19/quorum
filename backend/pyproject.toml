@@ -19,6 +19,11 @@ dependencies = [
     "colorlog>=6.10.1",
     "openai-agents>=0.14.0",
     "litellm>=1.0",
+    "structlog>=24.1.0",
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp>=1.25.0",
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]

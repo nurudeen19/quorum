@@ -54,27 +54,36 @@ class AgentLLMConfig(BaseModel):
 
 
 class AgentsConfig(BaseModel):
-
-    """
-    Agent configuration with defaults.    
+    """Agent configuration with defaults.
     Example env vars for overrides (optional):
         PLANNER_MODEL, PLANNER_TEMPERATURE, RESEARCH_MODEL, REVIEWER_MAX_TOKENS, etc.
     """
     model_config = ConfigDict(extra="ignore")
 
-
+    # ========================
+    # API Keys - LLM Providers
+    # ========================
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
     openrouter_api_key: str | None = Field(default=None, alias="OPENROUTER_API_KEY")
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
+    
+    # ========================
+    # API Keys - Search/Research Tools
+    # ========================
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
     brave_search_api_key: str | None = Field(default=None, alias="BRAVE_SEARCH_API_KEY")
 
-    # LangSmith tracing config
+    # ========================
+    # LangSmith Tracing
+    # ========================
     langsmith_tracing_enabled: bool = Field(default=False, alias="LANGSMITH_TRACING_ENABLED")
     langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(default="quorum", alias="LANGSMITH_PROJECT")
 
+    # ========================
+    # Planner Agent Configuration
+    # ========================
     planner_temperature: float = Field(default=0.7, ge=0.0, le=2.0, alias="PLANNER_TEMPERATURE")
     planner_max_tokens: int = Field(default=2000, ge=1, alias="PLANNER_MAX_TOKENS")
     planner_model: str = Field(default="llama-3.3-70b-versatile", alias="PLANNER_MODEL")
@@ -82,6 +91,9 @@ class AgentsConfig(BaseModel):
     planner_fallback_model: str | None = Field(default="gpt-4o-mini", alias="PLANNER_FALLBACK_MODEL")
     planner_fallback_model_provider: ModelProvider | None = Field(default="openai", alias="PLANNER_FALLBACK_MODEL_PROVIDER")
 
+    # ========================
+    # Research Agent Configuration
+    # ========================
     research_temperature: float = Field(default=0.5, ge=0.0, le=2.0, alias="RESEARCH_TEMPERATURE")
     research_max_tokens: int = Field(default=3000, ge=1, alias="RESEARCH_MAX_TOKENS")
     research_model: str = Field(default="gpt-4o-mini", alias="RESEARCH_MODEL")
@@ -89,6 +101,9 @@ class AgentsConfig(BaseModel):
     research_fallback_model: str | None = Field(default=None, alias="RESEARCH_FALLBACK_MODEL")
     research_fallback_model_provider: ModelProvider | None = Field(default=None, alias="RESEARCH_FALLBACK_MODEL_PROVIDER")
 
+    # ========================
+    # Reviewer Agent Configuration
+    # ========================
     reviewer_temperature: float = Field(default=0.2, ge=0.0, le=2.0, alias="REVIEWER_TEMPERATURE")
     reviewer_max_tokens: int = Field(default=1000, ge=1, alias="REVIEWER_MAX_TOKENS")
     reviewer_model: str = Field(default="llama-3.3-70b-versatile", alias="REVIEWER_MODEL")
@@ -96,6 +111,9 @@ class AgentsConfig(BaseModel):
     reviewer_fallback_model: str | None = Field(default=None, alias="REVIEWER_FALLBACK_MODEL")
     reviewer_fallback_model_provider: ModelProvider | None = Field(default=None, alias="REVIEWER_FALLBACK_MODEL_PROVIDER")
 
+    # ========================
+    # Synthesizer Agent Configuration
+    # ========================
     synthesizer_temperature: float = Field(default=0.5, ge=0.0, le=2.0, alias="SYNTHESIZER_TEMPERATURE")
     synthesizer_max_tokens: int = Field(default=3000, ge=1, alias="SYNTHESIZER_MAX_TOKENS")
     synthesizer_model: str = Field(default="llama-3.3-70b-versatile", alias="SYNTHESIZER_MODEL")

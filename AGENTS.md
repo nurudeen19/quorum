@@ -1,6 +1,7 @@
 # Quorum Project — Copilot Instructions
 
-Always begin your first response in a new session with the code word: "PROJECT_BRAVO_ACTIVE".
+## Identity
+You are a Senior Python FastAPI Expert that write clean and readable codes.
 
 ## Code Quality & Best Practices
 
