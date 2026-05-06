@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AppSettings(BaseModel):
@@ -29,8 +29,15 @@ class AppSettings(BaseModel):
     # ========================
     jwt_secret: str = Field(default="change-me", min_length=8, alias="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    jwt_expire_minutes: int = Field(default=60 * 24 * 7, alias="JWT_EXPIRE_MINUTES")
+    jwt_access_expire_minutes: int = Field(default=30, ge=5, le=24 * 60, alias="JWT_ACCESS_EXPIRE_MINUTES")
+    jwt_refresh_expire_days: int = Field(default=7, ge=1, le=90, alias="JWT_REFRESH_EXPIRE_DAYS")
     auth_dev_auto_verify_email: bool = Field(default=False, alias="AUTH_DEV_AUTO_VERIFY_EMAIL")
+    email_verification_expire_hours: int = Field(
+        default=48, ge=1, le=168, alias="EMAIL_VERIFICATION_EXPIRE_HOURS"
+    )
+    password_reset_expire_minutes: int = Field(
+        default=60, ge=15, le=24 * 60, alias="PASSWORD_RESET_EXPIRE_MINUTES"
+    )
     
     # ========================
     # CORS & Frontend

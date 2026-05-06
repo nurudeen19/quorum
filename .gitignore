@@ -27,3 +27,4 @@ ENV/
 *.sqlite3
 /data/
 todo.txt
+**.egg-info/

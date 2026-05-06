@@ -4,14 +4,14 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
     """User creation schema."""
-    email: str = Field(
+    email: EmailStr = Field(
         description="User email address",
-        examples=["user@example.com"]
+        examples=["user@example.com"],
     )
     username: str = Field(
         description="Unique username",
@@ -84,9 +84,9 @@ class UserUpdate(BaseModel):
 
 class UserLogin(BaseModel):
     """User login schema."""
-    email: str = Field(
+    email: EmailStr = Field(
         description="User email address",
-        examples=["user@example.com"]
+        examples=["user@example.com"],
     )
     password: str = Field(
         description="User password",

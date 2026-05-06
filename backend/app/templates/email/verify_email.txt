@@ -1,0 +1,7 @@
+Verify your email — {{ app_name }}
+
+Thanks for signing up. Open the link below to confirm your email address:
+
+{{ verify_link }}
+
+This link expires after a limited time. If you did not create an account, ignore this message.

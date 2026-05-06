@@ -1,44 +1,21 @@
-"""User HTTP endpoints."""
+"""User HTTP endpoints (authenticated profile)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends
 
-from app.core.database import get_db
-from app.schema.user import UserCreate, UserResponse
-from app.services import UserConflictError, UserService
+from app.api.deps import get_current_user
+from app.models.user import User
+from app.schema.user import UserResponse
 
 router = APIRouter()
 
 
-def get_user_service() -> UserService:
-    """Inject a stateless user service instance."""
-    return UserService()
-
-
-@router.post(
-    "/",
+@router.get(
+    "/me",
     response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create user",
-    description="Register a new user with email, username, and password.",
-    responses={
-        201: {"description": "User created"},
-        409: {"description": "Email or username already registered"},
-    },
+    summary="Current user",
 )
-async def create_user(
-    payload: UserCreate,
-    session: AsyncSession = Depends(get_db),
-    user_service: UserService = Depends(get_user_service),
-) -> UserResponse:
-    """Validate input and delegate creation to the user service."""
-    try:
-        user = await user_service.create_user(session, payload)
-    except UserConflictError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    return UserResponse.model_validate(user)
+async def read_me(current: User = Depends(get_current_user)) -> UserResponse:
+    """Return the authenticated user from the Bearer access token."""
+    return UserResponse.model_validate(current)
