@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -31,6 +31,9 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     """User response schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(
         description="Unique user identifier",
         examples=["123e4567-e89b-12d3-a456-426614174000"]
@@ -63,9 +66,6 @@ class UserResponse(BaseModel):
         description="Last update timestamp",
         examples=["2026-05-06T10:30:00Z"]
     )
-    
-    class Config:
-        from_attributes = True
 
 
 class UserUpdate(BaseModel):

@@ -28,3 +28,6 @@ ENV/
 /data/
 todo.txt
 **.egg-info/
+/.vscode/
+/.cursor/
+.idea/

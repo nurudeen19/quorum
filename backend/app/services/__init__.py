@@ -8,7 +8,6 @@ from app.services.exceptions import (
     ServiceError,
     UserConflictError,
 )
-from app.services.user_service import UserService
 
 __all__ = [
     "AuthService",
@@ -17,5 +16,4 @@ __all__ = [
     "InvalidTokenError",
     "ServiceError",
     "UserConflictError",
-    "UserService",
 ]

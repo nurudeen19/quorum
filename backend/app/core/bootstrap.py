@@ -1,11 +1,12 @@
 """Application bootstrap and lifecycle management."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from app.config import get_settings, AppSettings
 from app.core.database import close_db, init_db
@@ -41,7 +42,9 @@ class ApplicationBootstrap:
     def is_initialized(self) -> bool:
         return self._initialized
 
-    def setup_fastapi_lifespan(self) -> callable:
+    def setup_fastapi_lifespan(
+        self,
+    ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await self.initialize()
@@ -95,7 +98,15 @@ def create_fastapi_app(
         version=version,
         debug=settings.debug,
         lifespan=bootstrap.setup_fastapi_lifespan(),
-        **kwargs
+        **kwargs,
     )
-    
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     return app

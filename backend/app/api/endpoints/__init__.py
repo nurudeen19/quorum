@@ -1,3 +1,5 @@
-"""API endpoints package."""
+"""HTTP route modules (each submodule defines an ``APIRouter``)."""
 
-__all__ = []
+from app.api.endpoints import auth, health, users
+
+__all__ = ["auth", "health", "users"]

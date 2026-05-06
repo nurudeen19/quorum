@@ -42,4 +42,10 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled.",
         )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address is not verified.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
