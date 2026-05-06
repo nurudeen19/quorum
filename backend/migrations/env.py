@@ -19,7 +19,7 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.core.database import get_sync_database_url  # noqa: E402
-from app.models import Base, User  # noqa: F401, E402
+from app.models import Base, RefreshToken, User  # noqa: F401, E402
 
 target_metadata = Base.metadata
 

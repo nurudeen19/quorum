@@ -40,39 +40,19 @@ class AppSettings(BaseModel):
     )
     # Argon2id (argon2-cffi PasswordHasher); tune for your CPU/RAM (OWASP Password Storage Cheat Sheet).
     argon2_time_cost: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        alias="ARGON2_TIME_COST",
-        description="Argon2 time cost (iterations).",
+        default=2, ge=1, le=10, alias="ARGON2_TIME_COST", description="Argon2 time cost (iterations)."
     )
     argon2_memory_cost: int = Field(
-        default=65536,
-        ge=8192,
-        le=2_097_152,
-        alias="ARGON2_MEMORY_COST",
-        description="Argon2 memory cost in KiB (argon2-cffi memory_cost).",
+        default=65536, ge=8192, le=2_097_152, alias="ARGON2_MEMORY_COST", description="Argon2 memory cost in KiB (argon2-cffi memory_cost)."
     )
     argon2_parallelism: int = Field(
-        default=1,
-        ge=1,
-        le=16,
-        alias="ARGON2_PARALLELISM",
-        description="Argon2 parallelism (lanes).",
+        default=1, ge=1, le=16, alias="ARGON2_PARALLELISM", description="Argon2 parallelism (lanes)."
     )
     argon2_hash_len: int = Field(
-        default=32,
-        ge=16,
-        le=64,
-        alias="ARGON2_HASH_LEN",
-        description="Derived key length in bytes.",
+        default=32, ge=16, le=64, alias="ARGON2_HASH_LEN", description="Derived key length in bytes."
     )
     argon2_salt_len: int = Field(
-        default=16,
-        ge=8,
-        le=32,
-        alias="ARGON2_SALT_LEN",
-        description="Random salt length in bytes.",
+        default=16, ge=8, le=32, alias="ARGON2_SALT_LEN", description="Random salt length in bytes."
     )
 
     # ========================

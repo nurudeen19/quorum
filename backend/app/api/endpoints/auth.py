@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth_limits import (
+    rate_auth_forgot_password,
+    rate_auth_login,
+    rate_auth_logout,
+    rate_auth_refresh,
+    rate_auth_register,
+    rate_auth_reset_password,
+    rate_auth_verify,
+)
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.schema.auth import (
     ForgotPasswordRequest,
+    LogoutRequest,
     MessageResponse,
     RefreshRequest,
     RegisterResponse,
@@ -38,7 +49,9 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Register",
 )
+@limiter.limit(rate_auth_register)
 async def register(
+    request: Request,
     payload: UserCreate,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -60,7 +73,9 @@ async def register(
     response_model=TokenResponse,
     summary="Login",
 )
+@limiter.limit(rate_auth_login)
 async def login(
+    request: Request,
     payload: UserLogin,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -79,7 +94,9 @@ async def login(
     response_model=TokenResponse,
     summary="Refresh tokens",
 )
+@limiter.limit(rate_auth_refresh)
 async def refresh_tokens(
+    request: Request,
     payload: RefreshRequest,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -91,12 +108,33 @@ async def refresh_tokens(
     return TokenResponse(access_token=access, refresh_token=new_refresh)
 
 
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    summary="Logout (revoke refresh token)",
+)
+@limiter.limit(rate_auth_logout)
+async def logout(
+    request: Request,
+    payload: LogoutRequest,
+    session: AsyncSession = Depends(get_db),
+    auth: AuthService = Depends(get_auth_service),
+) -> MessageResponse:
+    try:
+        await auth.logout(session, payload.refresh_token)
+    except InvalidTokenError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+    return MessageResponse(detail="Session ended. Refresh token revoked.")
+
+
 @router.get(
     "/verify-email",
     response_model=MessageResponse,
     summary="Verify email (link)",
 )
+@limiter.limit(rate_auth_verify)
 async def verify_email_get(
+    request: Request,
     token: str = Query(..., min_length=10),
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -113,7 +151,9 @@ async def verify_email_get(
     response_model=MessageResponse,
     summary="Verify email (JSON)",
 )
+@limiter.limit(rate_auth_verify)
 async def verify_email_post(
+    request: Request,
     payload: VerifyEmailBody,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -130,7 +170,9 @@ async def verify_email_post(
     response_model=MessageResponse,
     summary="Request password reset",
 )
+@limiter.limit(rate_auth_forgot_password)
 async def forgot_password(
+    request: Request,
     payload: ForgotPasswordRequest,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),
@@ -146,7 +188,9 @@ async def forgot_password(
     response_model=MessageResponse,
     summary="Reset password",
 )
+@limiter.limit(rate_auth_reset_password)
 async def reset_password(
+    request: Request,
     payload: ResetPasswordRequest,
     session: AsyncSession = Depends(get_db),
     auth: AuthService = Depends(get_auth_service),

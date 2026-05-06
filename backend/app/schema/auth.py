@@ -27,7 +27,13 @@ class RegisterResponse(BaseModel):
 class RefreshRequest(BaseModel):
     """Body for exchanging a refresh token for new tokens."""
 
-    refresh_token: str = Field(description="Refresh JWT returned from login")
+    refresh_token: str = Field(description="Refresh JWT returned from login or refresh")
+
+
+class LogoutRequest(BaseModel):
+    """Body for revoking a refresh session server-side."""
+
+    refresh_token: str = Field(description="Refresh JWT to revoke")
 
 
 class ForgotPasswordRequest(BaseModel):

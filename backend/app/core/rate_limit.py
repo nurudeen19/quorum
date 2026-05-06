@@ -1,0 +1,13 @@
+"""Shared SlowAPI limiter instance (mounted on ``app.state.limiter``)."""
+
+from __future__ import annotations
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address, enabled=True, headers_enabled=True)
+
+
+def configure_rate_limiter(*, enabled: bool) -> None:
+    """Toggle enforcement without rebuilding the limiter."""
+    limiter.enabled = enabled

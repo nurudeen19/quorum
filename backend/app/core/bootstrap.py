@@ -6,9 +6,12 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.cors import CORSMiddleware
 
-from app.config import get_settings, AppSettings
+from app.config import AppSettings, get_settings
+from app.core.rate_limit import configure_rate_limiter, limiter
 from app.core.database import close_db, init_db
 from app.core.logging_config import setup_logging
 from app.core.metrics import setup_metrics
@@ -86,10 +89,11 @@ def create_fastapi_app(
     title: str | None = None,
     description: str | None = None,
     version: str = "1.0.0",
-    **kwargs
+    **kwargs,
 ) -> FastAPI:
     """Create a FastAPI application with proper lifecycle management."""
-    settings = get_settings().app
+    settings_all = get_settings()
+    settings = settings_all.app
     bootstrap = get_bootstrap()
     
     app = FastAPI(
@@ -108,5 +112,9 @@ def create_fastapi_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    configure_rate_limiter(enabled=settings_all.rate_limits.enabled)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     return app

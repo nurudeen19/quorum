@@ -81,6 +81,14 @@ class TokenPayload(dict):
     def token_type(self) -> str:
         return str(self["type"])
 
+    @property
+    def jti(self) -> str:
+        """Refresh token ``jti`` claim (required for stored sessions)."""
+        raw = self.get("jti")
+        if not raw:
+            raise jwt.InvalidTokenError("Refresh token missing jti")
+        return str(raw)
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -98,12 +106,15 @@ def create_access_token(user_id: UUID, settings: AppSettings) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(user_id: UUID, settings: AppSettings) -> str:
-    """Return a longer-lived refresh token."""
+def create_refresh_token(user_id: UUID, settings: AppSettings, jti: str) -> str:
+    """Return a longer-lived refresh token including ``jti`` for server-side revocation."""
+    if not jti or not jti.strip():
+        raise ValueError("jti must be non-empty")
     expires = _utc_now() + timedelta(days=settings.jwt_refresh_expire_days)
     payload = {
         "sub": str(user_id),
         "type": "refresh",
+        "jti": jti.strip(),
         "exp": expires,
         "iat": _utc_now(),
     }
@@ -129,8 +140,9 @@ def decode_access_token(token: str, settings: AppSettings) -> TokenPayload:
 
 
 def decode_refresh_token(token: str, settings: AppSettings) -> TokenPayload:
-    """Decode a refresh token and ensure ``type`` is ``refresh``."""
+    """Decode a refresh token; must be ``type=refresh`` and include ``jti``."""
     data = decode_token(token, settings)
     if data.token_type != "refresh":
         raise jwt.InvalidTokenError("Not a refresh token")
+    _ = data.jti  # validate claim present
     return data
