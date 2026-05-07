@@ -5,6 +5,14 @@ from app.schema.agents import (
     ReviewerResponse,
     SynthesizerResponse,
 )
+from app.schema.conversation import (
+    ConversationCreate,
+    ConversationResponse,
+    ConversationWithMessagesResponse,
+    MessageCreate,
+    MessageResponse,
+    MessageRole,
+)
 from app.schema.user import UserCreate, UserResponse, UserUpdate, UserLogin
 
 __all__ = [
@@ -12,8 +20,14 @@ __all__ = [
     "ResearchResponse",
     "ReviewerResponse",
     "SynthesizerResponse",
+    "ConversationCreate",
+    "ConversationResponse",
+    "ConversationWithMessagesResponse",
+    "MessageCreate",
+    "MessageResponse",
+    "MessageRole",
     "UserCreate",
-    "UserResponse", 
+    "UserResponse",
     "UserUpdate",
     "UserLogin",
 ]

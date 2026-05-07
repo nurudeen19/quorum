@@ -74,6 +74,11 @@ async def close_db() -> None:
     logger.info("database_closed")
 
 
+def get_session_factory() -> async_sessionmaker[AsyncSession] | None:
+    """Return the async session factory when the database is configured."""
+    return _session_factory
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: session per request with commit on success."""
     if _session_factory is None:

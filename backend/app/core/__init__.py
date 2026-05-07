@@ -8,7 +8,7 @@ from app.core.bootstrap import (
     initialize_app,
     shutdown_app,
 )
-from app.core.database import close_db, get_db, init_db
+from app.core.database import close_db, get_db, get_session_factory, init_db
 from app.core.logging_config import setup_logging
 from app.core.metrics import setup_metrics
 from app.core.security import (
@@ -32,6 +32,7 @@ __all__ = [
     "init_db",
     "close_db",
     "get_db",
+    "get_session_factory",
     "ApplicationBootstrap",
     "get_bootstrap",
     "initialize_app",

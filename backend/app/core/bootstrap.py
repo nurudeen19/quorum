@@ -10,6 +10,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.cors import CORSMiddleware
 
+from app.cache import build_conversation_cache, set_conversation_cache
+from app.cache.base import ConversationCache
 from app.config import AppSettings, get_settings
 from app.core.agent_factory import configure_langsmith_tracing
 from app.core.rate_limit import configure_rate_limiter, limiter
@@ -28,6 +30,7 @@ class ApplicationBootstrap:
             settings = get_settings().app
         self.settings = settings
         self._initialized = False
+        self.history_cache: ConversationCache | None = None
 
     async def initialize(self) -> None:
         if self._initialized:
@@ -37,9 +40,16 @@ class ApplicationBootstrap:
         configure_langsmith_tracing(get_settings().agents)
         if self.settings.database_url:
             await init_db()
+        settings_all = get_settings()
+        self.history_cache = build_conversation_cache(settings_all.cache)
+        set_conversation_cache(self.history_cache)
         self._initialized = True
 
     async def shutdown(self) -> None:
+        if self.history_cache is not None:
+            await self.history_cache.aclose()
+            self.history_cache = None
+        set_conversation_cache(None)
         await close_db()
         self._initialized = False
 

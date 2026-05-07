@@ -55,6 +55,10 @@ class AgentFactory:
             response_format=response_format,
         )
 
+    def build_model_for_role(self, role: AgentName) -> BaseChatModel:
+        """Public helper for chat completions (e.g. conversation summarization)."""
+        return self._build_model(role)
+
     def _build_model(self, role: AgentName) -> BaseChatModel:
         llm = self._agents.get_llm_config(role)
         primary = self._build_provider_model(

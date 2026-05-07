@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.config.app_settings import AppSettings
 from app.config.agents import AgentsConfig
+from app.config.cache import CacheSettings
 from app.config.guardrails import GuardrailsSettings
 from app.config.rate_limits import RateLimitsSettings
 
@@ -19,6 +20,7 @@ class Settings(
     GuardrailsSettings,
     AgentsConfig,
     RateLimitsSettings,
+    CacheSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(
@@ -43,6 +45,10 @@ class Settings(
     @property
     def rate_limits(self) -> RateLimitsSettings:
         return cast(RateLimitsSettings, self)
+
+    @property
+    def cache(self) -> CacheSettings:
+        return cast(CacheSettings, self)
 
 
 @lru_cache
