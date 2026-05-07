@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from app.agents.prompts import REVIEWER_DEFAULT, reviewer_instructions
 from app.config.agents import AgentName
 from app.schema.agents import ReviewerResponse
-from app.tools.search_tools import tavily_web_search
 
 if TYPE_CHECKING:
     from app.core.agent_factory import AgentFactory
@@ -17,12 +17,9 @@ class ReviewerAgent:
 
     role: AgentName = "reviewer"
     name = "reviewer_agent"
-    description = "Reviews outputs for quality, grounding, and clarity."
-    instructions = (
-        "You are the reviewer agent. Validate quality and factual grounding. "
-        "If quality is not enough, provide explicit fixes."
-    )
-    tools = (tavily_web_search,)
+    description = "Validates briefing accuracy, tone, and executive readiness."
+    instructions = REVIEWER_DEFAULT
+    tools = ()
     response_model = ReviewerResponse
     _instance: ClassVar[Any | None] = None
 
@@ -34,11 +31,12 @@ class ReviewerAgent:
     def get_or_create(self, factory: AgentFactory) -> Any:
         """Return singleton agent instance for this role."""
         if self.__class__._instance is None:
-            self.__class__._instance = factory.create_or_get_agent(
+            resolved = reviewer_instructions(factory.agents_config)
+            self.__class__._instance = factory.create_agent(
                 role=self.role,
                 name=self.name,
-                instructions=self.instructions,
-                tool_names=self.tools,
+                instructions=resolved,
+                tools=self.tools or None,
                 response_format=self.response_model,
             )
         return self.__class__._instance

@@ -20,16 +20,19 @@ def setup_prompt_guard(settings=None) -> None:
     if _pipeline is not None:
         return
     s = settings or get_settings()
-    token = s.hf_token
-    if not token:
+    if not s.enable_promtpt_guard:
+        return
+    token_secret = s.hf_token
+    token = token_secret.get_secret_value() if token_secret else ""
+    if not token.strip():
         raise RuntimeError("Prompt guard needs a Hugging Face token: set HF_TOKEN (or HUGGING_FACE_HUB_TOKEN)")
     from transformers import pipeline
     _pipeline = pipeline(
         task="text-classification",
-        model=s.prompt_guard.model_id,
+        model=s.model_id,
         truncation=True,
         max_length=_MAX_GUARD_MODEL_TOKENS,
-        device=s.prompt_guard.device,
+        device=s.device,
         token=token,
     )
     _pipeline("ok", truncation=True, max_length=_MAX_GUARD_MODEL_TOKENS)
@@ -77,10 +80,12 @@ def _softmax_malicious_probability(text: str) -> float:
 
 
 def classify_prompt(text: str, settings=None, *, malicious_threshold: float | None = None) -> tuple[bool, str | None]:
-    if _pipeline is None:
-        return False, "Prompt guard is not initialized."
     s = settings or get_settings()
-    threshold = float(malicious_threshold) if malicious_threshold is not None else float(s.prompt_guard.malicious_probability_threshold)
+    if not s.enable_promtpt_guard:
+        return True, None
+    if _pipeline is None:
+        return True, None
+    threshold = float(malicious_threshold) if malicious_threshold is not None else float(s.malicious_probability_threshold)
     try:
         p_mal = _softmax_malicious_probability(text)
     except Exception as exc:

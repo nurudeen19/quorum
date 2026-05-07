@@ -13,7 +13,6 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from app.agents import AGENT_DEFINITIONS
 from app.config.agents import AgentLLMConfig, AgentName, AgentsConfig, ModelProvider
 
 logger = structlog.get_logger(__name__)
@@ -36,21 +35,26 @@ class AgentFactory:
     def __init__(self, agents: AgentsConfig) -> None:
         self._agents = agents
 
+    @property
+    def agents_config(self) -> AgentsConfig:
+        """Settings bundle used for models and optional system-prompt overrides."""
+        return self._agents
+
     def create_agent(
         self,
         *,
         role: AgentName,
         name: str,
         instructions: str,
-        tool_names: tuple[str, ...],
+        tools: tuple[Any, ...] | None = None,
         response_format: type[BaseModel] | None,
     ) -> Any:
         """Create an agent instance from explicit role parameters."""
         model = self._build_model(role)
-        return create_agent(            
+        return create_agent(
             name=name,
             model=model,
-            tools=tool_names or None,
+            tools=list(tools) if tools else None,
             system_prompt=instructions,
             response_format=response_format,
         )
@@ -122,5 +126,5 @@ class AgentFactory:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
+
         raise ValueError(f"Unsupported model provider: {provider}")

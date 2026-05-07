@@ -1,5 +1,6 @@
 """API schemas package."""
 from app.schema.agents import (
+    Attendee,
     PlannerResponse,
     ResearchResponse,
     ReviewerResponse,
@@ -16,6 +17,7 @@ from app.schema.conversation import (
 from app.schema.user import UserCreate, UserResponse, UserUpdate, UserLogin
 
 __all__ = [
+    "Attendee",
     "PlannerResponse",
     "ResearchResponse",
     "ReviewerResponse",

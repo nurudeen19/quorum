@@ -43,7 +43,7 @@ def _should_classify_feedback_segment(text: str, settings: Settings) -> bool:
     """HF prompt guard is a poor fit for correction / rating channels unless explicitly enabled."""
     if text == THUMBS_DOWN_FEEDBACK_MARK:
         return False
-    return bool(settings.prompt_guard.classify_user_feedback)
+    return bool(settings.guardrails.classify_user_feedback)
 
 
 def run_user_input_guardrails(state: dict, settings: Settings | None = None) -> dict:

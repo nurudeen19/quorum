@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from app.agents.prompts import SYNTHESIZER_DEFAULT, synthesizer_instructions
 from app.config.agents import AgentName
 from app.schema.agents import SynthesizerResponse
 
@@ -16,11 +17,8 @@ class SynthesizerAgent:
 
     role: AgentName = "synthesizer"
     name = "synthesizer_agent"
-    description = "Builds the final user-facing answer from prior outputs."
-    instructions = (
-        "You are the synthesizer agent. Combine prior context into a clear, "
-        "actionable final response. Do not fabricate sources."
-    )
+    description = "Produces the polished two-minute executive briefing memo in Markdown."
+    instructions = SYNTHESIZER_DEFAULT
     tools = ()
     response_model = SynthesizerResponse
     _instance: ClassVar[Any | None] = None
@@ -33,11 +31,12 @@ class SynthesizerAgent:
     def get_or_create(self, factory: AgentFactory) -> Any:
         """Return singleton agent instance for this role."""
         if self.__class__._instance is None:
-            self.__class__._instance = factory.create_or_get_agent(
+            resolved = synthesizer_instructions(factory.agents_config)
+            self.__class__._instance = factory.create_agent(
                 role=self.role,
                 name=self.name,
-                instructions=self.instructions,
-                tool_names=self.tools,
+                instructions=resolved,
+                tools=self.tools or None,
                 response_format=self.response_model,
             )
         return self.__class__._instance

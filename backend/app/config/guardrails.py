@@ -28,3 +28,14 @@ class GuardrailsSettings(BaseModel):
     # ========================
     max_user_input_chars: int = Field(default=1000, ge=256, alias="MAX_USER_INPUT_CHARS")
     min_user_input_chars: int = Field(default=2, ge=0, alias="MIN_USER_INPUT_CHARS")
+    max_user_estimated_tokens: int = Field(default=12000, ge=256, alias="MAX_USER_ESTIMATED_TOKENS")
+    classify_user_feedback: bool = Field(
+        default=False,
+        alias="PROMPT_GUARD_CLASSIFY_USER_FEEDBACK",
+        description="When True, run HF prompt guard on user_feedback segments.",
+    )
+
+    # ========================
+    # Briefing graph (LangGraph)
+    # ========================
+    briefing_max_review_cycles: int = Field(default=5, ge=1, le=50, alias="BRIEFING_MAX_REVIEW_CYCLES")

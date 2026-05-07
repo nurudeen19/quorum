@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from app.agents.prompts import RESEARCH_DEFAULT, research_instructions
 from app.config.agents import AgentName
 from app.schema.agents import ResearchResponse
 from app.tools.search_tools import tavily_web_search, brave_web_search
@@ -17,11 +18,8 @@ class ResearchAgent:
 
     role: AgentName = "research"
     name = "research_agent"
-    description = "Collects evidence and supporting context for the plan."
-    instructions = (
-        "You are the research agent. Gather reliable facts for the current plan, "
-        "and clearly state caveats or uncertainty when needed."
-    )
+    description = "Runs live web search to profile attendees and companies for the briefing."
+    instructions = RESEARCH_DEFAULT
     tools = (tavily_web_search, brave_web_search)
     response_model = ResearchResponse
     _instance: ClassVar[Any | None] = None
@@ -34,11 +32,12 @@ class ResearchAgent:
     def get_or_create(self, factory: AgentFactory) -> Any:
         """Return singleton agent instance for this role."""
         if self.__class__._instance is None:
-            self.__class__._instance = factory.create_or_get_agent(
+            resolved = research_instructions(factory.agents_config)
+            self.__class__._instance = factory.create_agent(
                 role=self.role,
                 name=self.name,
-                instructions=self.instructions,
-                tool_names=self.tools,
+                instructions=resolved,
+                tools=self.tools or None,
                 response_format=self.response_model,
             )
         return self.__class__._instance

@@ -24,6 +24,7 @@ dependencies = [
     "langchain-classic>=1.0.6",
     "langchain-community>=0.4.1",
     "langchain-tavily>=0.2.18",
+    "langgraph>=0.2.76",
     "litellm>=1.0",
     "mailtrap>=2.5.0",
     "opentelemetry-api>=1.25.0",

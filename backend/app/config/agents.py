@@ -121,6 +121,15 @@ class AgentsConfig(BaseModel):
     synthesizer_fallback_model: str | None = Field(default=None, alias="SYNTHESIZER_FALLBACK_MODEL")
     synthesizer_fallback_model_provider: ModelProvider | None = Field(default=None, alias="SYNTHESIZER_FALLBACK_MODEL_PROVIDER")
 
+    # ========================
+    # System prompt overrides (optional; non-empty replaces built-in defaults)
+    # ========================
+    planner_system_prompt: str | None = Field(default=None, alias="PLANNER_SYSTEM_PROMPT")
+    planner_rework_system_prompt: str | None = Field(default=None, alias="PLANNER_REWORK_SYSTEM_PROMPT")
+    research_system_prompt: str | None = Field(default=None, alias="RESEARCH_SYSTEM_PROMPT")
+    reviewer_system_prompt: str | None = Field(default=None, alias="REVIEWER_SYSTEM_PROMPT")
+    synthesizer_system_prompt: str | None = Field(default=None, alias="SYNTHESIZER_SYSTEM_PROMPT")
+
     def _llm(self, role: AgentName) -> AgentLLMConfig:
         return AgentLLMConfig(
             temperature=getattr(self, f"{role}_temperature"),
