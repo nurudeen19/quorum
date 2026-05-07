@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.cors import CORSMiddleware
 
 from app.config import AppSettings, get_settings
+from app.core.agent_factory import configure_langsmith_tracing
 from app.core.rate_limit import configure_rate_limiter, limiter
 from app.core.database import close_db, init_db
 from app.core.logging_config import setup_logging
@@ -33,6 +34,7 @@ class ApplicationBootstrap:
             return
         setup_logging(self.settings)
         setup_tracing(self.settings)
+        configure_langsmith_tracing(get_settings().agents)
         if self.settings.database_url:
             await init_db()
         self._initialized = True

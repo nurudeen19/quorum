@@ -11,7 +11,10 @@ def _truncate(text: str, max_len: int = 12000) -> str:
     t = (text or "").strip()
     return t if len(t) <= max_len else t[: max_len - 24].rstrip() + "\n…(truncated)"
 
+
+@tool
 def tavily_web_search(query: str) -> str:
+    """Search the public web using Tavily."""
     key = get_settings().agents.tavily_api_key
     q = (query or "").strip()
     if not key:
@@ -49,7 +52,9 @@ def tavily_web_search(query: str) -> str:
         hits.append(SearchHit(rank=i, title=title, url=url, summary=_truncate(body), source="tavily", relevance_score=rel, meta=meta))
     return SearchToolResponse(provider="tavily", query=q, overview=overview, hits=hits).to_agent_text()
 
+@tool
 def brave_web_search(query: str) -> str:
+    """Search the public web using Brave LLM Context."""
     key = get_settings().agents.brave_search_api_key
     q = (query or "").strip()
     if not key:

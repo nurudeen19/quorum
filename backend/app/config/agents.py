@@ -131,6 +131,42 @@ class AgentsConfig(BaseModel):
             fallback_model_provider=getattr(self, f"{role}_fallback_model_provider"),
         )
 
+    def _provider_api_key(self, provider: ModelProvider) -> str | None:
+        if provider == "openai":
+            return self.openai_api_key
+        if provider == "groq":
+            return self.groq_api_key
+        if provider == "openrouter":
+            return self.openrouter_api_key
+        return self.google_api_key
+
+    @model_validator(mode="after")
+    def validate_provider_keys(self) -> "AgentsConfig":
+        """Ensure primary and configured fallback providers have API keys."""
+        for role in ("planner", "research", "reviewer", "synthesizer"):
+            model_provider = getattr(self, f"{role}_model_provider")
+            model_provider_key = self._provider_api_key(model_provider)
+            if not model_provider_key or not model_provider_key.strip():
+                raise ValueError(
+                    f"{role}_model_provider is '{model_provider}' but its API key is missing."
+                )
+
+            fallback_model = getattr(self, f"{role}_fallback_model")
+            fallback_provider = getattr(self, f"{role}_fallback_model_provider")
+            if not fallback_model or not str(fallback_model).strip() or fallback_provider is None:
+                continue
+            provider_key = self._provider_api_key(fallback_provider)
+            if provider_key and provider_key.strip():
+                continue
+            raise ValueError(
+                f"{role}_fallback_model_provider is '{fallback_provider}' but its API key is missing."
+            )
+        return self
+
+    def get_llm_config(self, role: AgentName) -> AgentLLMConfig:
+        """Return the LLM configuration bundle for a pipeline role."""
+        return self._llm(role)
+
     @property
     def planner(self) -> AgentLLMConfig:
         return self._llm("planner")
