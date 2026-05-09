@@ -29,8 +29,21 @@ async function handleLogout() {
       <div class="p-4 border-b border-gray-700">
         <div class="text-2xl font-bold">Quorum</div>
       </div>
-      <nav class="flex-grow p-4">
-        <a href="#" class="block py-2 px-4 rounded bg-gray-700 text-white">Dashboard</a>
+      <nav class="flex-grow p-4 space-y-2">
+        <RouterLink
+          to="/dashboard"
+          class="block py-2 px-4 rounded bg-gray-700 text-white"
+          active-class="ring-1 ring-gray-500"
+        >
+          Dashboard
+        </RouterLink>
+        <RouterLink
+          to="/chat"
+          class="block py-2 px-4 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
+          active-class="bg-gray-700 text-white ring-1 ring-gray-500"
+        >
+          Briefing chat
+        </RouterLink>
       </nav>
       <div class="p-4 border-t border-gray-700">
         <button
@@ -73,10 +86,16 @@ async function handleLogout() {
 
         <section class="bg-gray-800 rounded-lg p-6">
           <h2 class="text-xl font-semibold mb-4">Briefings</h2>
-          <p class="text-gray-400">
-            Meeting briefings and chat will appear here once connected to the agent pipeline.
+          <p class="text-gray-400 mb-4">
+            Start a structured briefing (attendees + goal), then continue in plain text.
           </p>
-          <RouterLink to="/" class="text-blue-500 hover:text-blue-400 mt-4 inline-block"
+          <RouterLink
+            to="/chat"
+            class="inline-block py-2 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium"
+          >
+            Open briefing chat
+          </RouterLink>
+          <RouterLink to="/" class="text-blue-500 hover:text-blue-400 mt-4 ml-4 inline-block"
             >← Back to landing</RouterLink
           >
         </section>

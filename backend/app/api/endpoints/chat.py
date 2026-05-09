@@ -27,8 +27,8 @@ router = APIRouter()
     summary="Stream a message in a conversation",
     description=(
         "Messages always belong to a **conversation**; users may have many. "
-        "Send `conversation_id` to continue a thread (history loaded from cache/DB). "
-        "Omit it to create a new conversation; the first SSE event includes the new id."
+        "**New thread:** omit `conversation_id` and send `briefing_context` "
+        "(attendees + goal). **Continue:** send `conversation_id` and `content` only."
     ),
     response_class=StreamingResponse,
 )
@@ -41,7 +41,8 @@ async def chat_stream(
 ) -> StreamingResponse:
     """Delegate conversation resolution, history, graph run, and persistence to ``ChatService``."""
     settings = get_settings()
-    if len(body.content) > settings.max_user_input_chars:
+    user_text = body.resolved_user_message()
+    if len(user_text) > settings.max_user_input_chars:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Message exceeds maximum length.",
@@ -53,7 +54,7 @@ async def chat_stream(
             history,
             user_id=current.id,
             conversation_id=body.conversation_id,
-            user_content=body.content,
+            user_content=user_text,
         )
     except ConversationNotFoundError:
         raise HTTPException(
@@ -65,7 +66,7 @@ async def chat_stream(
         yield chat_service.sse_event({"event": "meta", "conversation_id": str(conversation_id)})
         final_state: BriefingState | None = None
         async for state in chat_service.stream_briefing_values(
-            user_message=body.content,
+            user_message=user_text,
             conversation_history=history_text,
             user_id=current.id,
             conversation_id=conversation_id,

@@ -7,10 +7,10 @@
 
 **Per request**
 
-- **``conversation_id`` provided** — Continue that conversation: it must exist and belong to the
-  authenticated user. Prior turns are loaded (cache first, then DB) for the briefing graph.
-- **``conversation_id`` omitted** — Create a **new** conversation for the user, then run the same
-  pipeline. The client receives the new id in the first SSE ``meta`` event.
+- **``conversation_id`` omitted** — New conversation: body must include ``briefing_context``
+  (attendees + goal). The API builds one user message string for the graph and DB.
+- **``conversation_id`` provided** — Continue that thread with free-form ``content`` only;
+  ``briefing_context`` must not be sent.
 
 **Pipeline** (see :meth:`ChatService.begin_user_turn`): resolve or create conversation → load
 formatted history (excluding the new user line) → persist the user message → run the briefing

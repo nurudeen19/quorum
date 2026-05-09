@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-function parseDetail(payload: unknown): string {
+export function parseDetail(payload: unknown): string {
   if (payload && typeof payload === "object" && "detail" in payload) {
     const d = (payload as { detail: unknown }).detail;
     if (typeof d === "string") return d;
