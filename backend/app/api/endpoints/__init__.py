@@ -1,5 +1,5 @@
 """HTTP route modules (each submodule defines an ``APIRouter``)."""
 
-from app.api.endpoints import auth, health, users
+from app.api.endpoints import auth, chat, health, users
 
-__all__ = ["auth", "health", "users"]
+__all__ = ["auth", "chat", "health", "users"]

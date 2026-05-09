@@ -7,10 +7,12 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache import get_conversation_cache
 from app.config import get_settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
+from app.services.history_service import HistoryService
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
@@ -49,3 +51,14 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def get_history_service() -> HistoryService:
+    """Conversation cache + DB history (same limits as bootstrap)."""
+    settings = get_settings()
+    cache = get_conversation_cache()
+    return HistoryService(
+        cache,
+        max_turns=settings.cache.cache_max_turns,
+        summary_every_n_messages=settings.cache.conversation_summary_every_n_messages,
+    )

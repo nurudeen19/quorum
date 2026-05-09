@@ -53,3 +53,19 @@ class ConversationWithMessagesResponse(BaseModel):
 
     conversation: ConversationResponse
     messages: list[MessageResponse]
+
+
+class ChatStreamRequest(BaseModel):
+    """One user message in a conversation. Replies are streamed over SSE."""
+
+    conversation_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Conversation to continue. Must belong to the authenticated user. "
+            "Omit to create a new conversation; the SSE `meta` event returns the new `conversation_id`."
+        ),
+    )
+    content: str = Field(
+        min_length=1,
+        description="User message text for this turn (briefing pipeline).",
+    )

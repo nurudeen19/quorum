@@ -7,6 +7,7 @@ from app.schema.agents import (
     SynthesizerResponse,
 )
 from app.schema.conversation import (
+    ChatStreamRequest,
     ConversationCreate,
     ConversationResponse,
     ConversationWithMessagesResponse,
@@ -22,6 +23,7 @@ __all__ = [
     "ResearchResponse",
     "ReviewerResponse",
     "SynthesizerResponse",
+    "ChatStreamRequest",
     "ConversationCreate",
     "ConversationResponse",
     "ConversationWithMessagesResponse",

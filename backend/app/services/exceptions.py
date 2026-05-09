@@ -19,3 +19,11 @@ class EmailNotVerifiedError(ServiceError):
 
 class InvalidTokenError(ServiceError):
     """Verification, reset, or refresh token invalid or expired."""
+
+
+class ConversationNotFoundError(ServiceError):
+    """Requested conversation does not exist or is not owned by the user."""
+
+    def __init__(self, conversation_id: object) -> None:
+        self.conversation_id = conversation_id
+        super().__init__(f"Conversation not found: {conversation_id}")

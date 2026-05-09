@@ -145,18 +145,18 @@ class HistoryService:
 
         async def _run() -> None:
             try:
-                factory = get_session_factory()
-                if factory is None:
+                session_factory = get_session_factory()
+                if session_factory is None:
                     logger.warning("summary_skipped_no_database")
                     return
                 settings = get_settings()
                 bs = get_bootstrap()
-                factory = bs.agent_factory
-                if factory is not None:
-                    llm = factory.build_model_for_role("synthesizer")
+                agent_factory = bs.agent_factory
+                if agent_factory is not None:
+                    llm = agent_factory.build_model_for_role("synthesizer")
                 else:
                     llm = AgentFactory(settings.agents).build_model_for_role("synthesizer")
-                async with factory() as session:
+                async with session_factory() as session:
                     msgs = list(
                         (
                             await session.scalars(
@@ -182,7 +182,7 @@ class HistoryService:
                     ]
                 )
                 summary_text = getattr(out, "content", None) or str(out)
-                async with factory() as session:
+                async with session_factory() as session:
                     async with session.begin():
                         await session.execute(
                             update(Conversation)

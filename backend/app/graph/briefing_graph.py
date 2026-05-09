@@ -14,18 +14,16 @@ Branches::
                 → planner with reviewer feedback otherwise
 
 Node implementations (LLM calls, tools) live in :mod:`app.graph.briefing_nodes`.
+Chat turns run this graph via :class:`app.services.chat_service.ChatService`.
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-import structlog
 from langgraph.graph import END, START, StateGraph
 
 from app.core.agent_factory import AgentFactory
-
-logger = structlog.get_logger(__name__)
 
 # --- State --------------------------------------------------------------------
 
@@ -57,7 +55,7 @@ def create_initial_briefing_state(
     user_message: str,
     conversation_history: str = "",
 ) -> BriefingState:
-    """Invoke payload for ``run_executive_briefing``."""
+    """Initial state for :class:`app.services.chat_service.ChatService`."""
     return {
         "user_message": user_message.strip(),
         "conversation_history": (conversation_history or "").strip(),
@@ -102,9 +100,6 @@ def _after_review(state: BriefingState):
 
 
 # --- Compile & run ------------------------------------------------------------
-
-_compiled_by_factory_id: dict[int, Any] = {}
-
 
 def _apply_briefing_topology(g: StateGraph[BriefingState], nodes: dict[str, Any]) -> None:
     """Register briefing nodes and edges on ``g`` (shared by runtime graph and diagram stubs)."""
@@ -154,52 +149,3 @@ def build_briefing_graph(factory: AgentFactory) -> Any:
     g = StateGraph(BriefingState)
     _apply_briefing_topology(g, nodes)
     return g.compile()
-
-
-def _compiled_graph(factory: AgentFactory) -> Any:
-    key = id(factory)
-    if key not in _compiled_by_factory_id:
-        _compiled_by_factory_id[key] = build_briefing_graph(factory)
-    return _compiled_by_factory_id[key]
-
-
-async def run_executive_briefing(
-    *,
-    factory: AgentFactory | None = None,
-    user_message: str,
-    conversation_history: str = "",
-) -> BriefingState:
-    """Run the pipeline using the graph built at application startup.
-
-    When ``factory`` is omitted, uses :attr:`ApplicationBootstrap.executive_briefing_graph`
-    from :func:`app.core.bootstrap.get_bootstrap`. Pass ``factory`` only for tests or
-    one-off runs with a custom factory.
-    """
-    initial = create_initial_briefing_state(
-        user_message=user_message,
-        conversation_history=conversation_history,
-    )
-    if factory is None:
-        from app.core.bootstrap import get_bootstrap
-
-        b = get_bootstrap()
-        graph = b.executive_briefing_graph
-        fac = b.agent_factory
-        if graph is None or fac is None:
-            raise RuntimeError(
-                "Executive briefing graph is not initialized; application bootstrap did not run."
-            )
-    else:
-        graph = _compiled_graph(factory)
-        fac = factory
-    try:
-        return await graph.ainvoke(initial)
-    except Exception:
-        logger.exception("executive_briefing_graph_failed", factory_id=id(fac))
-        return {
-            **initial,
-            "status": "failed",
-            "final_user_message": (
-                "Something went wrong while preparing your briefing. Please try again shortly."
-            ),
-        }
