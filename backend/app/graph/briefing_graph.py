@@ -106,14 +106,8 @@ def _after_review(state: BriefingState):
 _compiled_by_factory_id: dict[int, Any] = {}
 
 
-def build_briefing_graph(factory: AgentFactory) -> Any:
-    """Wire nodes and edges; returns a compiled graph (reuse — do not rebuild every request)."""
-    # Lazy import keeps this module readable without pulling LLM node code at import time.
-    from app.graph.briefing_nodes import build_briefing_nodes
-
-    nodes = build_briefing_nodes(factory)
-    g = StateGraph(BriefingState)
-
+def _apply_briefing_topology(g: StateGraph[BriefingState], nodes: dict[str, Any]) -> None:
+    """Register briefing nodes and edges on ``g`` (shared by runtime graph and diagram stubs)."""
     g.add_node(NODE_GUARD, nodes["guardrails"])
     g.add_node(NODE_PLANNER, nodes["planner"])
     g.add_node(NODE_RESEARCH, nodes["research"])
@@ -131,6 +125,34 @@ def build_briefing_graph(factory: AgentFactory) -> Any:
     g.add_edge(NODE_SYNTHESIZER, NODE_REVIEWER)
     g.add_conditional_edges(NODE_REVIEWER, _after_review, {NODE_PLANNER: NODE_PLANNER, END: END})
 
+
+async def _diagram_stub_node(_state: BriefingState) -> dict[str, Any]:
+    """No-op node for structure-only graph visualization."""
+    return {}
+
+
+def build_briefing_graph_for_diagram() -> Any:
+    """Compile the briefing graph with stub nodes for Mermaid / PNG export (no API keys)."""
+    stub_nodes = {
+        "guardrails": _diagram_stub_node,
+        "planner": _diagram_stub_node,
+        "research": _diagram_stub_node,
+        "synthesizer": _diagram_stub_node,
+        "reviewer": _diagram_stub_node,
+    }
+    g = StateGraph(BriefingState)
+    _apply_briefing_topology(g, stub_nodes)
+    return g.compile()
+
+
+def build_briefing_graph(factory: AgentFactory) -> Any:
+    """Wire nodes and edges; returns a compiled graph (reuse — do not rebuild every request)."""
+    # Lazy import keeps this module readable without pulling LLM node code at import time.
+    from app.graph.briefing_nodes import build_briefing_nodes
+
+    nodes = build_briefing_nodes(factory)
+    g = StateGraph(BriefingState)
+    _apply_briefing_topology(g, nodes)
     return g.compile()
 
 
