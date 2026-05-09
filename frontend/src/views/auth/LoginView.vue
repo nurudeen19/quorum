@@ -31,102 +31,59 @@ async function submit() {
 </script>
 
 <template>
-  <div class="wrap">
-    <RouterLink to="/" class="back">← Home</RouterLink>
-    <AuthCard title="Sign in" subtitle="Use the email and password for your Quorum account.">
-      <form class="form" @submit.prevent="submit">
-        <label class="field">
-          <span>Email</span>
-          <input v-model="email" type="email" autocomplete="email" required />
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input v-model="password" type="password" autocomplete="current-password" required />
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" class="submit" :disabled="loading">
-          {{ loading ? "Signing in…" : "Sign in" }}
-        </button>
-      </form>
-      <p class="footer-links">
-        <RouterLink to="/forgot-password">Forgot password?</RouterLink>
-        <span> · </span>
-        <RouterLink to="/register">Create account</RouterLink>
-      </p>
-    </AuthCard>
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
+    <div class="w-full max-w-md">
+      <RouterLink to="/" class="text-gray-400 hover:text-white mb-4 block">← Home</RouterLink>
+      <AuthCard title="Sign in" subtitle="Use the email and password for your Quorum account.">
+        <form class="space-y-6" @submit.prevent="submit">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-300">Email</label>
+            <div class="mt-1">
+              <input
+                v-model="email"
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
+            <div class="mt-1">
+              <input
+                v-model="password"
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+              />
+            </div>
+          </div>
+
+          <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
+
+          <div>
+            <button
+              type="submit"
+              :disabled="loading"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {{ loading ? "Signing in…" : "Sign in" }}
+            </button>
+          </div>
+        </form>
+        <p class="mt-6 text-center text-sm text-gray-400">
+          <RouterLink to="/forgot-password" class="hover:text-white">Forgot password?</RouterLink>
+          <span class="mx-2">·</span>
+          <RouterLink to="/register" class="hover:text-white">Create account</RouterLink>
+        </p>
+      </AuthCard>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.wrap {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.back {
-  align-self: flex-start;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.field input {
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.field input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
-}
-
-.error {
-  color: var(--color-danger);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.submit {
-  margin-top: 0.25rem;
-  padding: 0.65rem 1rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-accent);
-  color: #0a0e14;
-  font-weight: 600;
-}
-
-.submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.footer-links {
-  margin-top: 1.25rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-</style>

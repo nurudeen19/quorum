@@ -30,50 +30,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="wrap">
-    <RouterLink to="/" class="back">← Home</RouterLink>
-    <AuthCard title="Email verification">
-      <p v-if="status === 'loading'" class="muted">Verifying…</p>
-      <p v-else-if="status === 'ok'" class="ok">{{ message }}</p>
-      <p v-else-if="status === 'err'" class="err">{{ message }}</p>
-      <p class="footer-links">
-        <RouterLink to="/login">Sign in</RouterLink>
-      </p>
-    </AuthCard>
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
+    <div class="w-full max-w-md">
+      <RouterLink to="/" class="text-gray-400 hover:text-white mb-4 block">← Home</RouterLink>
+      <AuthCard title="Email verification">
+        <div class="text-center">
+          <p v-if="status === 'loading'" class="text-gray-400">Verifying…</p>
+          <p v-else-if="status === 'ok'" class="text-green-400">{{ message }}</p>
+          <p v-else-if="status === 'err'" class="text-red-500">{{ message }}</p>
+          <p class="mt-6">
+            <RouterLink
+              to="/login"
+              class="text-blue-500 hover:text-blue-400"
+              >Sign in</RouterLink
+            >
+          </p>
+        </div>
+      </AuthCard>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.wrap {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.back {
-  align-self: flex-start;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.muted {
-  color: var(--color-text-muted);
-}
-
-.ok {
-  color: var(--color-success);
-}
-
-.err {
-  color: var(--color-danger);
-}
-
-.footer-links {
-  margin-top: 1.25rem;
-  font-size: 0.9rem;
-}
-</style>

@@ -42,137 +42,85 @@ function goLogin() {
 </script>
 
 <template>
-  <div class="wrap">
-    <RouterLink to="/" class="back">← Home</RouterLink>
-    <AuthCard
-      title="Create account"
-      subtitle="Matches POST /api/v1/auth/register — username and email must be unique."
-    >
-      <div v-if="successDetail" class="success">
-        <p>{{ successDetail }}</p>
-        <button type="button" class="submit" @click="goLogin">Go to sign in</button>
-      </div>
-      <form v-else class="form" @submit.prevent="submit">
-        <label class="field">
-          <span>Email</span>
-          <input v-model="email" type="email" autocomplete="email" required />
-        </label>
-        <label class="field">
-          <span>Username</span>
-          <input
-            v-model="username"
-            type="text"
-            autocomplete="username"
-            required
-            minlength="2"
-          />
-        </label>
-        <label class="field">
-          <span>Full name (optional)</span>
-          <input v-model="fullName" type="text" autocomplete="name" />
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            required
-            minlength="8"
-          />
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" class="submit" :disabled="loading">
-          {{ loading ? "Creating…" : "Register" }}
-        </button>
-      </form>
-      <p v-if="!successDetail" class="footer-links">
-        Already have an account?
-        <RouterLink to="/login">Sign in</RouterLink>
-      </p>
-    </AuthCard>
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
+    <div class="w-full max-w-md">
+      <RouterLink to="/" class="text-gray-400 hover:text-white mb-4 block">← Home</RouterLink>
+      <AuthCard
+        title="Create account"
+        subtitle="Matches POST /api/v1/auth/register — username and email must be unique."
+      >
+        <div v-if="successDetail" class="text-center">
+          <p class="text-green-400 mb-4">{{ successDetail }}</p>
+          <button
+            type="button"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            @click="goLogin"
+          >
+            Go to sign in
+          </button>
+        </div>
+        <form v-else class="space-y-6" @submit.prevent="submit">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-300">Email</label>
+            <input
+              v-model="email"
+              id="email"
+              type="email"
+              autocomplete="email"
+              required
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-300">Username</label>
+            <input
+              v-model="username"
+              id="username"
+              type="text"
+              autocomplete="username"
+              required
+              minlength="2"
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <label for="fullName" class="block text-sm font-medium text-gray-300"
+              >Full name (optional)</label
+            >
+            <input
+              v-model="fullName"
+              id="fullName"
+              type="text"
+              autocomplete="name"
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
+            <input
+              v-model="password"
+              id="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
+          <button
+            type="submit"
+            :disabled="loading"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {{ loading ? "Creating…" : "Register" }}
+          </button>
+        </form>
+        <p v-if="!successDetail" class="mt-6 text-center text-sm text-gray-400">
+          Already have an account?
+          <RouterLink to="/login" class="hover:text-white">Sign in</RouterLink>
+        </p>
+      </AuthCard>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.wrap {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.back {
-  align-self: flex-start;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.field input {
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.field input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
-}
-
-.error {
-  color: var(--color-danger);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.success {
-  text-align: center;
-}
-
-.success p {
-  color: var(--color-success);
-  margin: 0 0 1rem;
-}
-
-.submit {
-  padding: 0.65rem 1rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-accent);
-  color: #0a0e14;
-  font-weight: 600;
-  width: 100%;
-}
-
-.submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.footer-links {
-  margin-top: 1.25rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-</style>

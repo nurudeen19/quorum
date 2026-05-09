@@ -24,202 +24,71 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">Quorum</div>
-      <nav class="menu">
-        <span class="menu-item active">Dashboard</span>
+  <div class="flex min-h-screen bg-gray-900 text-white">
+    <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+      <div class="p-4 border-b border-gray-700">
+        <div class="text-2xl font-bold">Quorum</div>
+      </div>
+      <nav class="flex-grow p-4">
+        <a href="#" class="block py-2 px-4 rounded bg-gray-700 text-white">Dashboard</a>
       </nav>
-      <div class="sidebar-footer">
-        <button type="button" class="link-btn" @click="handleLogout">Sign out</button>
+      <div class="p-4 border-t border-gray-700">
+        <button
+          type="button"
+          class="w-full text-left text-gray-400 hover:text-white"
+          @click="handleLogout"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
 
-    <div class="content">
-      <header class="top">
-        <h1>Dashboard</h1>
+    <div class="flex-grow flex flex-col">
+      <header class="bg-gray-800 border-b border-gray-700 p-4">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
       </header>
 
-      <section class="panel" v-if="auth.user">
-        <h2>Account</h2>
-        <dl class="grid">
-          <div>
-            <dt>Username</dt>
-            <dd>{{ auth.user.username }}</dd>
-          </div>
-          <div>
-            <dt>Email</dt>
-            <dd>{{ auth.user.email }}</dd>
-          </div>
-          <div v-if="auth.user.full_name">
-            <dt>Name</dt>
-            <dd>{{ auth.user.full_name }}</dd>
-          </div>
-          <div>
-            <dt>Email verified</dt>
-            <dd>{{ auth.user.is_verified ? "Yes" : "No" }}</dd>
-          </div>
-        </dl>
-      </section>
+      <main class="flex-grow p-6 space-y-6">
+        <section class="bg-gray-800 rounded-lg p-6" v-if="auth.user">
+          <h2 class="text-xl font-semibold mb-4">Account</h2>
+          <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm font-medium text-gray-400">Username</dt>
+              <dd class="mt-1 text-white">{{ auth.user.username }}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-400">Email</dt>
+              <dd class="mt-1 text-white">{{ auth.user.email }}</dd>
+            </div>
+            <div v-if="auth.user.full_name">
+              <dt class="text-sm font-medium text-gray-400">Name</dt>
+              <dd class="mt-1 text-white">{{ auth.user.full_name }}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-400">Email verified</dt>
+              <dd class="mt-1 text-white">{{ auth.user.is_verified ? "Yes" : "No" }}</dd>
+            </div>
+          </dl>
+        </section>
 
-      <section class="panel muted-panel">
-        <h2>Briefings</h2>
-        <p class="hint">
-          Meeting briefings and chat will appear here once connected to the agent pipeline.
+        <section class="bg-gray-800 rounded-lg p-6">
+          <h2 class="text-xl font-semibold mb-4">Briefings</h2>
+          <p class="text-gray-400">
+            Meeting briefings and chat will appear here once connected to the agent pipeline.
+          </p>
+          <RouterLink to="/" class="text-blue-500 hover:text-blue-400 mt-4 inline-block"
+            >← Back to landing</RouterLink
+          >
+        </section>
+
+        <p v-if="!auth.user && auth.isAuthenticated" class="text-gray-400">Loading profile…</p>
+        <p v-else-if="!auth.isAuthenticated" class="text-red-500">
+          Session expired.
+          <RouterLink to="/login" class="text-blue-500 hover:text-blue-400"
+            >Sign in again</RouterLink
+          >
         </p>
-        <RouterLink to="/" class="inline-link">← Back to landing</RouterLink>
-      </section>
-
-      <p v-if="!auth.user && auth.isAuthenticated" class="loading">Loading profile…</p>
-      <p v-else-if="!auth.isAuthenticated" class="error">
-        Session expired.
-        <RouterLink to="/login">Sign in again</RouterLink>
-      </p>
+      </main>
     </div>
   </div>
 </template>
-
-<style scoped>
-.layout {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  min-height: 100vh;
-}
-
-.sidebar {
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  padding: 1.25rem 1rem;
-}
-
-.brand {
-  font-weight: 700;
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-  letter-spacing: -0.02em;
-}
-
-.menu {
-  flex: 1;
-}
-
-.menu-item {
-  display: block;
-  padding: 0.5rem 0.65rem;
-  border-radius: 6px;
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-}
-
-.menu-item.active {
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
-}
-
-.sidebar-footer {
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  padding: 0.35rem 0.65rem;
-  font-size: 0.9rem;
-}
-
-.link-btn:hover {
-  color: var(--color-text);
-}
-
-.content {
-  padding: 1.5rem 2rem;
-  max-width: 880px;
-}
-
-.top h1 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.panel h2 {
-  font-size: 1rem;
-  margin-bottom: 1rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  margin: 0;
-}
-
-dt {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
-  margin-bottom: 0.2rem;
-}
-
-dd {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.muted-panel .hint {
-  color: var(--color-text-muted);
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
-}
-
-.inline-link {
-  font-size: 0.9rem;
-}
-
-.loading,
-.error {
-  color: var(--color-text-muted);
-}
-
-.error {
-  color: var(--color-danger);
-}
-
-@media (max-width: 720px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .menu {
-    flex: 1;
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .sidebar-footer {
-    border-top: none;
-    padding-top: 0;
-  }
-}
-</style>

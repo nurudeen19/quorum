@@ -38,126 +38,60 @@ async function submit() {
 </script>
 
 <template>
-  <div class="wrap">
-    <RouterLink to="/login" class="back">← Sign in</RouterLink>
-    <AuthCard title="Reset password" subtitle="Set a new password for your account.">
-      <div v-if="done" class="success">
-        <p>Password updated. You can sign in now.</p>
-        <RouterLink to="/login" class="btn">Sign in</RouterLink>
-      </div>
-      <form v-else class="form" @submit.prevent="submit">
-        <p v-if="!token" class="warn">Add <code>?token=…</code> from your reset email.</p>
-        <label class="field">
-          <span>New password</span>
-          <input
-            v-model="password"
-            type="password"
-            autocomplete="new-password"
-            required
-            minlength="8"
-          />
-        </label>
-        <label class="field">
-          <span>Confirm password</span>
-          <input
-            v-model="password2"
-            type="password"
-            autocomplete="new-password"
-            required
-            minlength="8"
-          />
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button type="submit" class="submit" :disabled="loading || !token">
-          {{ loading ? "Saving…" : "Update password" }}
-        </button>
-      </form>
-    </AuthCard>
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
+    <div class="w-full max-w-md">
+      <RouterLink to="/login" class="text-gray-400 hover:text-white mb-4 block">← Sign in</RouterLink>
+      <AuthCard title="Reset password" subtitle="Set a new password for your account.">
+        <div v-if="done" class="text-center">
+          <p class="text-green-400 mb-4">Password updated. You can sign in now.</p>
+          <RouterLink
+            to="/login"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >Sign in</RouterLink
+          >
+        </div>
+        <form v-else class="space-y-6" @submit.prevent="submit">
+          <p v-if="!token" class="text-yellow-400 text-sm">
+            Add <code>?token=…</code> from your reset email.
+          </p>
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-300"
+              >New password</label
+            >
+            <input
+              v-model="password"
+              id="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <label for="password2" class="block text-sm font-medium text-gray-300"
+              >Confirm password</label
+            >
+            <input
+              v-model="password2"
+              id="password2"
+              type="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+            />
+          </div>
+          <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
+          <button
+            type="submit"
+            :disabled="loading || !token"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {{ loading ? "Saving…" : "Update password" }}
+          </button>
+        </form>
+      </AuthCard>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.wrap {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.back {
-  align-self: flex-start;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.field input {
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.warn {
-  color: var(--color-danger);
-  font-size: 0.9rem;
-}
-
-.warn code {
-  font-size: 0.85rem;
-}
-
-.error {
-  color: var(--color-danger);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.success {
-  text-align: center;
-}
-
-.success p {
-  color: var(--color-success);
-  margin: 0 0 1rem;
-}
-
-.btn {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  background: var(--color-accent);
-  color: #0a0e14;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.submit {
-  padding: 0.65rem 1rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-accent);
-  color: #0a0e14;
-  font-weight: 600;
-}
-
-.submit:disabled {
-  opacity: 0.6;
-}
-</style>

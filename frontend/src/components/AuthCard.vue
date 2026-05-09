@@ -6,32 +6,9 @@ defineProps<{
 </script>
 
 <template>
-  <div class="card">
-    <h1 class="title">{{ title }}</h1>
-    <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+  <div class="w-full max-w-md p-8 bg-gray-800 border border-gray-700 rounded-lg shadow-lg">
+    <h1 class="text-2xl font-bold text-white mb-2">{{ title }}</h1>
+    <p v-if="subtitle" class="text-gray-400 mb-6">{{ subtitle }}</p>
     <slot />
   </div>
 </template>
-
-<style scoped>
-.card {
-  width: 100%;
-  max-width: 420px;
-  padding: 2rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.title {
-  font-size: 1.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.subtitle {
-  margin: 0 0 1.5rem;
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-}
-</style>
