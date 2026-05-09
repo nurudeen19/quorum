@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app.config.agents import AgentLLMConfig, AgentName, AgentsConfig, ModelProvider
+from app.core.startup_checks import StartupConfigurationError
 
 logger = structlog.get_logger(__name__)
 
@@ -22,11 +23,16 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 def configure_langsmith_tracing(agents: AgentsConfig) -> None:
     """Configure LangSmith tracing once at app startup (one-time setup)."""
-    if agents.langsmith_tracing_enabled and agents.langsmith_api_key:
-        os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        os.environ["LANGCHAIN_API_KEY"] = agents.langsmith_api_key
-        os.environ["LANGCHAIN_PROJECT"] = agents.langsmith_project
-        logger.info("langsmith_tracing_enabled", project=agents.langsmith_project)
+    if not agents.langsmith_tracing_enabled:
+        return
+    if not agents.langsmith_api_key or not str(agents.langsmith_api_key).strip():
+        raise StartupConfigurationError(
+            "LANGSMITH_TRACING_ENABLED is true but LANGSMITH_API_KEY is missing or empty."
+        )
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = agents.langsmith_api_key.strip()
+    os.environ["LANGCHAIN_PROJECT"] = agents.langsmith_project
+    logger.info("langsmith_tracing_enabled", project=agents.langsmith_project)
 
 
 class AgentFactory:

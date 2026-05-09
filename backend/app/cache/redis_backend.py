@@ -87,6 +87,10 @@ class RedisConversationCache(ConversationCache):
         await r.delete(self._messages_key(conversation_id))
         await r.delete(self._summary_key(conversation_id))
 
+    async def verify_connectivity(self) -> None:
+        r = await self._conn()
+        await r.ping()
+
     async def aclose(self) -> None:
         if self._client is not None:
             await self._client.aclose()

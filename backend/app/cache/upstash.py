@@ -82,5 +82,8 @@ class UpstashConversationCache(ConversationCache):
         await self._redis.delete(self._messages_key(conversation_id))
         await self._redis.delete(self._summary_key(conversation_id))
 
+    async def verify_connectivity(self) -> None:
+        await self._redis.ping()
+
     async def aclose(self) -> None:
         await self._redis.close()

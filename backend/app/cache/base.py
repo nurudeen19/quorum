@@ -51,3 +51,7 @@ class ConversationCache(ABC):
     async def aclose(self) -> None:
         """Optional cleanup (e.g. HTTP client). Default: no-op."""
         return
+
+    async def verify_connectivity(self) -> None:
+        """Ping remote backends where applicable; default is a no-op."""
+        return
