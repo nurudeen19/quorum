@@ -65,7 +65,7 @@ async def init_db() -> None:
         return
     _engine = create_async_engine(
         settings.database_url,
-        echo=settings.debug,
+        echo=settings.database_echo,
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,
         pool_timeout=settings.database_pool_timeout,

@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class UserCreate(BaseModel):
@@ -83,12 +85,37 @@ class UserUpdate(BaseModel):
 
 
 class UserLogin(BaseModel):
-    """User login schema."""
-    email: EmailStr = Field(
-        description="User email address",
-        examples=["user@example.com"],
+    """Sign-in payload: email **or** username (same field), plus password."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    login: str = Field(
+        min_length=1,
+        description="Email address or username (as registered).",
+        examples=["user@example.com", "johndoe"],
     )
     password: str = Field(
         description="User password",
-        examples=["securepassword123"]
+        examples=["securepassword123"],
     )
+
+    @field_validator("login", mode="before")
+    @classmethod
+    def strip_login(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_email_field(cls, data: Any) -> Any:
+        """Accept older clients that send ``email`` instead of ``login``."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        login_val = out.get("login")
+        if (login_val is None or (isinstance(login_val, str) and not login_val.strip())) and out.get(
+            "email"
+        ):
+            out["login"] = str(out["email"]).strip()
+        return out

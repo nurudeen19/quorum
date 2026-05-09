@@ -10,7 +10,7 @@ const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-const email = ref("");
+const login = ref("");
 const password = ref("");
 const error = ref("");
 const loading = ref(false);
@@ -19,7 +19,7 @@ async function submit() {
   error.value = "";
   loading.value = true;
   try {
-    await auth.login({ email: email.value.trim(), password: password.value });
+    await auth.login({ login: login.value.trim(), password: password.value });
     const redirect = (route.query.redirect as string) || "/dashboard";
     router.push(redirect);
   } catch (e) {
@@ -34,18 +34,24 @@ async function submit() {
   <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
     <div class="w-full max-w-md">
       <RouterLink to="/" class="text-gray-400 hover:text-white mb-4 block">← Home</RouterLink>
-      <AuthCard title="Sign in" subtitle="Use the email and password for your Quorum account.">
+      <AuthCard
+        title="Sign in"
+        subtitle="Use the email or username you registered with, plus your password."
+      >
         <form class="space-y-6" @submit.prevent="submit">
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-300">Email</label>
+            <label for="login" class="block text-sm font-medium text-gray-300"
+              >Email or username</label
+            >
             <div class="mt-1">
               <input
-                v-model="email"
-                id="email"
-                name="email"
-                type="email"
-                autocomplete="email"
+                v-model="login"
+                id="login"
+                name="login"
+                type="text"
+                autocomplete="username"
                 required
+                placeholder="you@company.com or johndoe"
                 class="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
               />
             </div>

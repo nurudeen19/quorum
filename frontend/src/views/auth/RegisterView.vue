@@ -47,7 +47,7 @@ function goLogin() {
       <RouterLink to="/" class="text-gray-400 hover:text-white mb-4 block">← Home</RouterLink>
       <AuthCard
         title="Create account"
-        subtitle="Matches POST /api/v1/auth/register — username and email must be unique."
+        subtitle="Pick a username and email for your Quorum account. Each must be unique—we’ll tell you if either is already in use."
       >
         <div v-if="successDetail" class="text-center">
           <p class="text-green-400 mb-4">{{ successDetail }}</p>

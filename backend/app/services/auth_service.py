@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jwt
 import structlog
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -118,13 +118,22 @@ class AuthService:
 
         return user
 
-    async def login(self, session: AsyncSession, email: str, password: str) -> tuple[str, str]:
-        """Validate credentials and return access and refresh JWTs (new refresh session row)."""
-        email_norm = email.strip().lower()
-        result = await session.execute(select(User).where(User.email == email_norm))
+    async def login(self, session: AsyncSession, login: str, password: str) -> tuple[str, str]:
+        """Validate credentials and return access and refresh JWTs (new refresh session row).
+        """
+        key = login.strip().lower()
+        if not key:
+            raise InvalidCredentialsError("Incorrect email, username, or password.")
+
+        result = await session.execute(select(User).where(User.email == key))
         user = result.scalar_one_or_none()
+        if user is None:
+            result = await session.execute(
+                select(User).where(func.lower(User.username) == key),
+            )
+            user = result.scalar_one_or_none()
         if user is None or not verify_password(password, user.password_hash):
-            raise InvalidCredentialsError("Incorrect email or password.")
+            raise InvalidCredentialsError("Incorrect email, username, or password.")
         if not user.is_active:
             raise InvalidCredentialsError("Account is disabled.")
         if not user.is_verified:

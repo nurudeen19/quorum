@@ -19,7 +19,8 @@ export interface UserCreate {
 }
 
 export interface UserLogin {
-  email: string;
+  /** Email address or username (must match registration). */
+  login: string;
   password: string;
 }
 

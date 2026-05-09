@@ -19,6 +19,11 @@ class AppSettings(BaseModel):
     # Database
     # ========================
     database_url: str | None = Field(default=None, alias="DATABASE_URL")
+    database_echo: bool = Field(
+        default=False,
+        alias="DATABASE_ECHO",
+        description="When true, SQLAlchemy prints every SQL statement to the console (verbose).",
+    )
     database_pool_size: int = Field(default=10, ge=1, le=50, alias="DATABASE_POOL_SIZE")
     database_max_overflow: int = Field(default=20, ge=0, le=100, alias="DATABASE_MAX_OVERFLOW")
     database_pool_timeout: int = Field(default=30, ge=1, le=300, alias="DATABASE_POOL_TIMEOUT")
@@ -76,7 +81,14 @@ class AppSettings(BaseModel):
     # Logging Configuration
     # ========================
     log_level: str = Field(default="INFO", alias="LOG_LEVEL", description="Logging level (e.g., INFO, DEBUG, WARNING)")
-    log_mode: str = Field(default="both", alias="LOG_MODE", description="Logging mode: console, json, or both")
+    log_mode: str = Field(
+        default="both",
+        alias="LOG_MODE",
+        description=(
+            "console: pretty stdout only; json: JSON lines to log file only; "
+            "both: pretty stdout and JSON lines to log file."
+        ),
+    )
     log_file_path: str = Field(default="logs/app.log", alias="LOG_FILE_PATH", description="Path to log file")
     log_max_size_mb: int = Field(default=10, ge=1, le=100, alias="LOG_MAX_SIZE_MB", description="Max log file size in MB")
     log_backup_count: int = Field(default=5, ge=1, le=20, alias="LOG_BACKUP_COUNT", description="Number of backup log files")
