@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.cache.base import CachedMessage, ConversationCache, ConversationHistorySnapshot
 from app.config import get_settings
 from app.core.agent_factory import AgentFactory
+from app.core.bootstrap import get_bootstrap
 from app.core.database import get_session_factory
 from app.models.conversation import Conversation
 from app.models.message import Message, MessageRole
@@ -149,7 +150,12 @@ class HistoryService:
                     logger.warning("summary_skipped_no_database")
                     return
                 settings = get_settings()
-                llm = AgentFactory(settings.agents).build_model_for_role("synthesizer")
+                bs = get_bootstrap()
+                factory = bs.agent_factory
+                if factory is not None:
+                    llm = factory.build_model_for_role("synthesizer")
+                else:
+                    llm = AgentFactory(settings.agents).build_model_for_role("synthesizer")
                 async with factory() as session:
                     msgs = list(
                         (

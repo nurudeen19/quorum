@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 
@@ -36,12 +37,29 @@ def get_sync_database_url() -> str:
     return sync_database_url(settings.database_url)
 
 
+async def ping_database() -> None:
+    """Single round-trip connectivity check (no connection pool)."""
+    settings = get_settings().app
+    if not settings.database_url:
+        return
+    engine = create_async_engine(
+        settings.database_url,
+        poolclass=NullPool,
+        echo=False,
+    )
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    finally:
+        await engine.dispose()
+
+
 async def init_db() -> None:
-    """Create the async engine, session factory, and verify connectivity."""
+    """Create the pooled async engine and session factory."""
     global _engine, _session_factory
     settings = get_settings().app
     if not settings.database_url:
-        logger.info("database_skipped_missing_url")
+        logger.debug("database_skipped_missing_url")
         return
     if _engine is not None:
         return
@@ -59,9 +77,7 @@ async def init_db() -> None:
         expire_on_commit=False,
         autoflush=False,
     )
-    async with _engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
-    logger.info("database_initialized")
+    logger.debug("database_initialized")
 
 
 async def close_db() -> None:
@@ -71,7 +87,7 @@ async def close_db() -> None:
         await _engine.dispose()
     _engine = None
     _session_factory = None
-    logger.info("database_closed")
+    logger.debug("database_closed")
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession] | None:

@@ -26,5 +26,8 @@ def setup_tracing(settings: AppSettings | None = None) -> None:
             provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     except Exception as exc:
         import logging
-        logging.getLogger(__name__).warning(f"Failed to setup OTLP exporter, using console: {exc}")
+
+        logging.getLogger(__name__).debug(
+            "OTLP exporter unavailable, using console span exporter: %s", exc
+        )
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))

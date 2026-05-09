@@ -14,7 +14,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app.config.agents import AgentLLMConfig, AgentName, AgentsConfig, ModelProvider
-from app.core.startup_checks import StartupConfigurationError
+from app.core.exceptions import StartupConfigurationError
 
 logger = structlog.get_logger(__name__)
 

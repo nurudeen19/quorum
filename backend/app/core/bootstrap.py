@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncGenerator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any
 
 import structlog
 from fastapi import FastAPI
@@ -14,16 +16,13 @@ from starlette.middleware.cors import CORSMiddleware
 from app.cache import build_conversation_cache, set_conversation_cache
 from app.cache.base import ConversationCache
 from app.config import AppSettings, get_settings
-from app.core.agent_factory import configure_langsmith_tracing
-from app.core.database import close_db, init_db
+from app.core.agent_factory import AgentFactory, configure_langsmith_tracing
+from app.core.database import close_db, init_db, ping_database
+from app.core.exceptions import StartupConfigurationError
 from app.core.logging_config import setup_logging
 from app.core.metrics import setup_metrics
 from app.core.rate_limit import configure_rate_limiter, limiter
-from app.core.startup_checks import (
-    StartupConfigurationError,
-    validate_deployment_settings,
-    verify_briefing_graph_wiring,
-)
+from app.core.startup_console import failed, initialized, skipped, starting
 from app.core.tracing import setup_tracing
 from app.guardrails.prompt_guard import setup_prompt_guard, teardown_prompt_guard
 
@@ -32,60 +31,107 @@ logger = structlog.get_logger(__name__)
 
 class ApplicationBootstrap:
     """Manages application lifecycle and critical components."""
+
     def __init__(self, settings: AppSettings | None = None) -> None:
         if settings is None:
             settings = get_settings().app
         self.settings = settings
         self._initialized = False
         self.history_cache: ConversationCache | None = None
+        self.agent_factory: AgentFactory | None = None
+        self.executive_briefing_graph: Any | None = None
 
     async def initialize(self) -> None:
         if self._initialized:
             return
-        setup_logging(self.settings)
+
         settings_all = get_settings()
-        validate_deployment_settings(settings_all)
-        setup_tracing(self.settings)
-        configure_langsmith_tracing(settings_all.agents)
-        verify_briefing_graph_wiring()
+
+        starting("logging")
+        setup_logging(self.settings)
+        initialized("logging")
+
+        starting("telemetry")
+        try:
+            setup_tracing(self.settings)
+            configure_langsmith_tracing(settings_all.agents)
+        except StartupConfigurationError:
+            failed("telemetry", "configuration")
+            raise
+        except Exception as exc:
+            failed("telemetry", str(exc)[:160])
+            raise
+        initialized("telemetry")
+
         if self.settings.database_url:
-            await init_db()
-            logger.info("database_startup_check_ok")
+            starting("database")
+            try:
+                await ping_database()
+                await init_db()
+            except Exception as exc:
+                failed("database", str(exc)[:160])
+                raise
+            initialized("database")
         else:
-            logger.warning(
-                "database_url_missing",
-                hint="Database-backed routes will be unavailable until DATABASE_URL is set.",
-            )
+            skipped("database", "DATABASE_URL not set")
+
+        starting("briefing graph")
+        try:
+            # Local import avoids a cycle: bootstrap → briefing_graph → agent_factory →
+            # app.core package __init__ (re-imports bootstrap while briefing_graph loads).
+            from app.graph.briefing_graph import build_briefing_graph
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                self.agent_factory = AgentFactory(settings_all.agents)
+                self.executive_briefing_graph = build_briefing_graph(self.agent_factory)
+        except Exception as exc:
+            self.agent_factory = None
+            self.executive_briefing_graph = None
+            failed("briefing graph", str(exc)[:160])
+            raise
+        initialized("briefing graph")
 
         if settings_all.enable_promtpt_guard:
+            hf = settings_all.hf_token.get_secret_value() if settings_all.hf_token else ""
+            if not hf.strip():
+                failed("prompt guard", "HF_TOKEN missing")
+                raise StartupConfigurationError(
+                    "ENABLE_PROMPT_GUARD is true but HF_TOKEN is missing."
+                )
+            starting("prompt guard")
             try:
                 await asyncio.to_thread(setup_prompt_guard, settings_all)
             except Exception as exc:
+                failed("prompt guard", str(exc)[:160])
                 logger.exception("prompt_guard_startup_failed")
                 raise StartupConfigurationError(
-                    "Failed to load the Hugging Face prompt guard model; check logs."
+                    "Prompt guard failed to initialize; see logs for details."
                 ) from exc
-            logger.info("prompt_guard_startup_check_ok", model_id=settings_all.model_id)
+            initialized("prompt guard")
         else:
-            logger.info("prompt_guard_disabled")
+            skipped("prompt guard", "disabled in configuration")
 
-        self.history_cache = build_conversation_cache(settings_all.cache)
+        starting("cache")
         try:
+            self.history_cache = build_conversation_cache(settings_all.cache)
             await self.history_cache.verify_connectivity()
         except Exception as exc:
+            failed("cache", str(exc)[:160])
             logger.exception("conversation_cache_connectivity_failed")
             raise StartupConfigurationError(
-                "Conversation cache failed connectivity check (Redis / Upstash); check logs."
+                "Conversation cache failed connectivity check; see logs for details."
             ) from exc
-        logger.info(
-            "conversation_cache_startup_check_ok",
-            backend=settings_all.cache.cache_backend,
-        )
         set_conversation_cache(self.history_cache)
+        initialized("cache")
+
         self._initialized = True
+        initialized("application")
 
     async def shutdown(self) -> None:
         teardown_prompt_guard()
+        self.agent_factory = None
+        self.executive_briefing_graph = None
         if self.history_cache is not None:
             await self.history_cache.aclose()
             self.history_cache = None
@@ -103,11 +149,11 @@ class ApplicationBootstrap:
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await self.initialize()
-            setup_metrics(app, self.settings)
             try:
                 yield
             finally:
                 await self.shutdown()
+
         return lifespan
 
 
@@ -147,7 +193,7 @@ def create_fastapi_app(
     settings_all = get_settings()
     settings = settings_all.app
     bootstrap = get_bootstrap()
-    
+
     app = FastAPI(
         title=title or settings.app_name,
         description=description or "Quorum API with integrated lifecycle management",
@@ -168,5 +214,11 @@ def create_fastapi_app(
     configure_rate_limiter(enabled=settings_all.rate_limits.enabled)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    try:
+        setup_metrics(app, settings)
+    except Exception as exc:
+        failed("metrics", str(exc)[:160])
+        raise
 
     return app

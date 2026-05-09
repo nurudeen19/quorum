@@ -1,9 +1,29 @@
-
 from __future__ import annotations
+
+import logging
 import os
 from typing import Any
+
 from app.config.settings import get_settings
+
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
+# Quieter Hugging Face / transformers during pipeline load (startup console stays minimal).
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+
+_NOISY_LOGGERS = (
+    "transformers",
+    "transformers.tokenization_utils_base",
+    "huggingface_hub",
+    "httpx",
+    "httpcore",
+    "urllib3",
+    "torch",
+    "safetensors",
+    "sentence_transformers",
+    "filelock",
+)
 
 _pipeline: Any | None = None
 _MAX_GUARD_MODEL_TOKENS = 512
@@ -26,16 +46,28 @@ def setup_prompt_guard(settings=None) -> None:
     token = token_secret.get_secret_value() if token_secret else ""
     if not token.strip():
         raise RuntimeError("Prompt guard needs a Hugging Face token: set HF_TOKEN (or HUGGING_FACE_HUB_TOKEN)")
-    from transformers import pipeline
-    _pipeline = pipeline(
-        task="text-classification",
-        model=s.model_id,
-        truncation=True,
-        max_length=_MAX_GUARD_MODEL_TOKENS,
-        device=s.device,
-        token=token,
-    )
-    _pipeline("ok", truncation=True, max_length=_MAX_GUARD_MODEL_TOKENS)
+
+    prev_levels: dict[str, int] = {}
+    for name in _NOISY_LOGGERS:
+        log = logging.getLogger(name)
+        prev_levels[name] = log.level
+        log.setLevel(logging.ERROR)
+
+    try:
+        from transformers import pipeline
+
+        _pipeline = pipeline(
+            task="text-classification",
+            model=s.model_id,
+            truncation=True,
+            max_length=_MAX_GUARD_MODEL_TOKENS,
+            device=s.device,
+            token=token,
+        )
+        _pipeline("ok", truncation=True, max_length=_MAX_GUARD_MODEL_TOKENS)
+    finally:
+        for name, level in prev_levels.items():
+            logging.getLogger(name).setLevel(level)
 
 
 
