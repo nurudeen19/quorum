@@ -104,6 +104,25 @@ class AppSettings(BaseModel):
     # ========================
     metrics_enabled: bool = Field(default=True, alias="METRICS_ENABLED")
 
+    # ========================
+    # Observability dashboard (authenticated API + optional log tail)
+    # ========================
+    observability_dashboard_enabled: bool = Field(
+        default=False,
+        alias="OBSERVABILITY_DASHBOARD_ENABLED",
+        description="When true, expose /api/v1/observability/* for the in-app dashboard.",
+    )
+    observability_log_tail_enabled: bool = Field(
+        default=False,
+        alias="OBSERVABILITY_LOG_TAIL_ENABLED",
+        description="When true, allow tailing the app log file via the observability API.",
+    )
+    observability_trace_ui_url: str | None = Field(
+        default=None,
+        alias="OBSERVABILITY_TRACE_UI_URL",
+        description="Optional URL to Jaeger / Grafana Tempo / etc. shown in the dashboard.",
+    )
+
     @property
     def cors_origins(self) -> list[str]:
         """Parse comma-separated CORS origins."""

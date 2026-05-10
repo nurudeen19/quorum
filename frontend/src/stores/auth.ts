@@ -5,6 +5,7 @@ import * as authApi from "@/api/auth";
 import * as usersApi from "@/api/users";
 import { ApiError } from "@/api/http";
 import type { UserCreate, UserLogin, UserResponse } from "@/api/types";
+import { useChatSessionsStore } from "@/stores/chatSessions";
 
 const ACCESS_KEY = "quorum_access_token";
 const REFRESH_KEY = "quorum_refresh_token";
@@ -61,18 +62,31 @@ export const useAuthStore = defineStore("auth", () => {
   function clearSession() {
     user.value = null;
     persistTokens(null, null);
+    useChatSessionsStore().resetForLogout();
   }
 
   async function initialize() {
     if (initialized.value) return;
     initialized.value = true;
     await fetchUser();
+    if (accessToken.value) {
+      try {
+        await useChatSessionsStore().fetchRemoteConversations();
+      } catch {
+        /* non-fatal */
+      }
+    }
   }
 
   async function login(payload: UserLogin) {
     const tokens = await authApi.login(payload);
     persistTokens(tokens.access_token, tokens.refresh_token);
     await fetchUser();
+    try {
+      await useChatSessionsStore().fetchRemoteConversations();
+    } catch {
+      /* non-fatal */
+    }
   }
 
   async function register(payload: UserCreate) {

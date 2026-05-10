@@ -116,6 +116,15 @@ class HistoryService:
         )
         session.add(msg)
         await session.flush()
+        if role == MessageRole.user:
+            line = (content or "").strip().split("\n", 1)[0].strip()
+            title_val = (line[:200] + ("…" if len(line) > 200 else "")) if line else None
+            if title_val:
+                await session.execute(
+                    update(Conversation)
+                    .where(Conversation.id == conversation_id, Conversation.title.is_(None))
+                    .values(title=title_val[:512]),
+                )
         created = msg.created_at or datetime.now(timezone.utc)
         cm = CachedMessage(
             role=msg.role.value,
@@ -238,3 +247,52 @@ class HistoryService:
                 )
 
         return asyncio.create_task(_run())
+
+    async def list_conversations_for_user(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        *,
+        limit: int = 100,
+    ) -> list[Conversation]:
+        """Return the user's conversations, newest activity first."""
+        lim = max(1, min(limit, 200))
+        stmt = (
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.updated_at.desc())
+            .limit(lim)
+        )
+        return list((await session.scalars(stmt)).all())
+
+    async def list_messages_for_user(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        conversation_id: UUID,
+    ) -> list[Message] | None:
+        """Return messages oldest-first if the conversation belongs to ``user_id``."""
+        conv = await self.get_conversation(session, user_id, conversation_id)
+        if conv is None:
+            return None
+        stmt = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
+        )
+        return list((await session.scalars(stmt)).all())
+
+    async def delete_conversation_for_user(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        conversation_id: UUID,
+    ) -> bool:
+        """Delete a conversation and its messages if owned by ``user_id``."""
+        conv = await self.get_conversation(session, user_id, conversation_id)
+        if conv is None:
+            return False
+        await self._cache.clear(conversation_id)
+        await session.delete(conv)
+        await session.flush()
+        return True

@@ -84,7 +84,7 @@ class AgentsConfig(BaseModel):
     # ========================
     # Planner Agent Configuration
     # ========================
-    planner_temperature: float = Field(default=0.7, ge=0.0, le=2.0, alias="PLANNER_TEMPERATURE")
+    planner_temperature: float = Field(default=0.5, ge=0.0, le=2.0, alias="PLANNER_TEMPERATURE")
     planner_max_tokens: int = Field(default=2000, ge=1, alias="PLANNER_MAX_TOKENS")
     planner_model: str = Field(default="llama-3.3-70b-versatile", alias="PLANNER_MODEL")
     planner_model_provider: ModelProvider = Field(default="groq", alias="PLANNER_MODEL_PROVIDER")
@@ -122,7 +122,7 @@ class AgentsConfig(BaseModel):
     synthesizer_fallback_model_provider: ModelProvider | None = Field(default=None, alias="SYNTHESIZER_FALLBACK_MODEL_PROVIDER")
 
     # ========================
-    # System prompt overrides (optional; non-empty replaces built-in defaults)
+    # System prompt overrides (optional; non-empty replaces each role's class-defined default)
     # ========================
     planner_system_prompt: str | None = Field(default=None, alias="PLANNER_SYSTEM_PROMPT")
     planner_rework_system_prompt: str | None = Field(default=None, alias="PLANNER_REWORK_SYSTEM_PROMPT")
@@ -191,3 +191,10 @@ class AgentsConfig(BaseModel):
     @property
     def synthesizer(self) -> AgentLLMConfig:
         return self._llm("synthesizer")
+
+
+def resolved_system_prompt(override: str | None, default: str) -> str:
+    """Return a non-empty env override when set, otherwise ``default`` (agent system prompts)."""
+    if override is not None and override.strip():
+        return override.strip()
+    return default

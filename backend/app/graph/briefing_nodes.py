@@ -12,14 +12,10 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from app.agents.prompts import (
-    planner_primary_instructions,
-    planner_rework_instructions,
-    research_instructions,
-    reviewer_instructions,
-    synthesizer_instructions,
-)
+from app.agents.planner import PlannerAgent
 from app.agents.research import ResearchAgent
+from app.agents.reviewer import ReviewerAgent
+from app.agents.synthesizer import SynthesizerAgent
 from app.config.agents import AgentsConfig
 from app.config.settings import Settings, get_settings
 from app.core.agent_factory import AgentFactory
@@ -32,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 _RESEARCH_STRUCTURE_USER = (
     "Based strictly on the conversation and tool results above, emit one structured research "
-    "response. Stay faithful to evidence; note gaps in caveats."
+    "response. Include only evidence scoped to the planner's attendees and companies; exclude "
+    "unrelated same-name individuals. Attribute claims to sources in raw_report and "
+    "source_summary. Use caveats for uncertainty, conflicts, or deliberately omitted ambiguous hits."
 )
 
 
@@ -113,7 +111,7 @@ class _BriefingNodes:
         llm = self._factory.build_model_for_role("research")
         messages = await _invoke_tools_until_done(
             llm,
-            system_prompt=research_instructions(cfg),
+            system_prompt=ResearchAgent.resolve_instructions(cfg),
             human_task="Execute the planner output below. Use tools for live web search.\n\n" + task,
             tools=ResearchAgent.tools,
         )
@@ -133,7 +131,7 @@ class _BriefingNodes:
         payload = json.dumps({"planner": po, "research": ro}, indent=2, default=str)[:100_000]
         out: SynthesizerResponse = await structured.ainvoke(
             [
-                SystemMessage(content=synthesizer_instructions(cfg)),
+                SystemMessage(content=SynthesizerAgent.resolve_instructions(cfg)),
                 HumanMessage(
                     content="Produce the executive briefing memo from this JSON:\n\n" + payload
                 ),
@@ -155,11 +153,13 @@ class _BriefingNodes:
         )[:120_000]
         verdict: ReviewerResponse = await structured.ainvoke(
             [
-                SystemMessage(content=reviewer_instructions(cfg)),
+                SystemMessage(content=ReviewerAgent.resolve_instructions(cfg)),
                 HumanMessage(
                     content=(
-                        "Evaluate whether the synthesizer memo is acceptable for an executive reader "
-                        "given the research notes.\n\n"
+                        "Evaluate whether the synthesizer memo is acceptable for an executive reader. "
+                        "Confirm alignment with planner scope (meeting subject, each attendee name "
+                        "and company, briefing_goal, context_notes/disambiguation), accuracy vs "
+                        "research, citations/source list coherence, and tone.\n\n"
                         f"{bundle}"
                     )
                 ),
@@ -218,11 +218,11 @@ def _planner_messages(state: BriefingState, cfg: AgentsConfig) -> tuple[list[Any
     rejection = (state.get("review_rejection_notes") or "").strip()
 
     if rejection:
-        system = planner_rework_instructions(cfg)
+        system = PlannerAgent.resolve_rework_instructions(cfg)
         human = _planner_rework_human(user_msg=user_msg, rejection=rejection, state=state)
         return ([SystemMessage(content=system), HumanMessage(content=human)], True)
 
-    system = planner_primary_instructions(cfg)
+    system = PlannerAgent.resolve_primary_instructions(cfg)
     human = (
         "Conversation history (only you see this—encode needed facts into your plan):\n"
         f"{history}\n\n"

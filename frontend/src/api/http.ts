@@ -63,3 +63,33 @@ export async function apiFetch<T>(
 
   return json as T;
 }
+
+/** Authenticated GET returning raw text (e.g. Prometheus exposition). */
+export async function apiFetchText(
+  path: string,
+  options: RequestInit & { skipAuth?: boolean } = {},
+): Promise<string> {
+  const { skipAuth, headers: hdr, ...rest } = options;
+  const headers = new Headers(hdr);
+  if (!skipAuth) {
+    const access = localStorage.getItem("quorum_access_token");
+    if (access) headers.set("Authorization", `Bearer ${access}`);
+  }
+  const res = await fetch(`${baseURL()}${path.startsWith("/") ? path : `/${path}`}`, {
+    ...rest,
+    headers,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let json: unknown = undefined;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = text;
+      }
+    }
+    throw new ApiError(parseDetail(json), res.status, json);
+  }
+  return text;
+}

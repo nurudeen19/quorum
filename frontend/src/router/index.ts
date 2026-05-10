@@ -53,6 +53,12 @@ const router = createRouter({
       component: () => import("@/views/ChatView.vue"),
       meta: { title: "Briefing chat", requiresAuth: true },
     },
+    {
+      path: "/dashboard/observability",
+      name: "observability",
+      component: () => import("@/views/ObservabilityView.vue"),
+      meta: { title: "Observability", requiresAuth: true },
+    },
   ],
 });
 

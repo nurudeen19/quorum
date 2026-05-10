@@ -1,8 +1,10 @@
-"""Chat HTTP: validate input, delegate conversation + briefing flow to :class:`~app.services.chat_service.ChatService`."""
+"""Chat HTTP: list/load conversations, stream messages, delegate briefing to ``ChatService``."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +12,12 @@ from app.api.deps import get_current_user, get_db, get_history_service
 from app.config import get_settings
 from app.graph.briefing_graph import BriefingState
 from app.models.user import User
-from app.schema.conversation import ChatStreamRequest
+from app.schema.conversation import (
+    ChatStreamRequest,
+    ConversationListItem,
+    ConversationMessagesResponse,
+    MessageResponse,
+)
 from app.services.chat_service import (
     ChatService,
     chat_stream_state_payload,
@@ -20,6 +27,75 @@ from app.services.exceptions import ConversationNotFoundError
 from app.services.history_service import HistoryService
 
 router = APIRouter()
+
+
+@router.get(
+    "/conversations",
+    response_model=list[ConversationListItem],
+    summary="List my conversations",
+)
+async def list_my_conversations(
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    history: HistoryService = Depends(get_history_service),
+    limit: int = Query(50, ge=1, le=200),
+) -> list[ConversationListItem]:
+    """Return the authenticated user's briefing threads, newest ``updated_at`` first."""
+    rows = await history.list_conversations_for_user(session, current.id, limit=limit)
+    return [
+        ConversationListItem(
+            id=r.id,
+            title=r.title,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+        for r in rows
+    ]
+
+
+@router.get(
+    "/conversations/{conversation_id}/messages",
+    response_model=ConversationMessagesResponse,
+    summary="Load messages for a conversation",
+)
+async def get_conversation_messages(
+    conversation_id: UUID,
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    history: HistoryService = Depends(get_history_service),
+) -> ConversationMessagesResponse:
+    """Return all messages in chronological order when the thread belongs to the current user."""
+    msgs = await history.list_messages_for_user(session, current.id, conversation_id)
+    if msgs is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+    return ConversationMessagesResponse(
+        conversation_id=conversation_id,
+        messages=[MessageResponse.model_validate(m) for m in msgs],
+    )
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a conversation",
+)
+async def delete_my_conversation(
+    conversation_id: UUID,
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    history: HistoryService = Depends(get_history_service),
+) -> Response:
+    """Remove a conversation and its messages (owner only)."""
+    ok = await history.delete_conversation_for_user(session, current.id, conversation_id)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

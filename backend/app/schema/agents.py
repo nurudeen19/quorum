@@ -11,7 +11,12 @@ class Attendee(BaseModel):
     """Someone attending the meeting."""
 
     name: str = Field(description="Person name as given by the user")
-    company: str = Field(description="Organization or affiliation")
+    company: str = Field(
+        description=(
+            "Organization or affiliation for this person—use this to disambiguate from unrelated "
+            "people with the same name"
+        ),
+    )
 
 
 class PlannerResponse(BaseModel):
@@ -29,21 +34,32 @@ class PlannerResponse(BaseModel):
     )
     context_notes: str = Field(
         description=(
-            "Short inferred context: relationships, seniority, why the meeting matters"
+            "Short inferred context: relationships, seniority, why the meeting matters, and how "
+            "each attendee is disambiguated from same-name ambiguity (role, geography, team, "
+            "known email/URL fragment if provided)"
         ),
     )
     plan_steps: list[str] = Field(
-        description="Ordered steps the research agent should execute",
+        description=(
+            "Ordered steps the research agent must execute; explicitly require scoping each "
+            "person to the stated company/role/context and excluding unrelated homonyms"
+        ),
     )
     research_queries: list[str] = Field(
-        description="Concrete search queries or angles for live web research",
+        description=(
+            "Concrete search queries that include disambiguation tokens (company, title, location, "
+            "product, etc.)—never bare names alone when ambiguity is plausible"
+        ),
     )
     needs_user_clarification: bool = Field(
         description="True if critical details are missing and the user must answer first",
     )
     clarifying_questions: list[str] = Field(
         default_factory=list,
-        description="Questions for the user when needs_user_clarification is True",
+        description=(
+            "Specific questions when identity or scope is unclear (e.g. employer, role, city, "
+            "LinkedIn URL, spelling)—required when needs_user_clarification is True"
+        ),
     )
     post_review_next_agent: Literal["research", "synthesizer"] | None = Field(
         default=None,
@@ -69,23 +85,39 @@ class ResearchResponse(BaseModel):
 
     raw_report: str = Field(
         description=(
-            "Compiled evidence: per-person and per-company notes with dates and source cues"
+            "Evidence scoped to planner attendees and companies: per-person sections with dated "
+            "facts; each block should tie claims to identifiable context (employer, role, region). "
+            "Include inline source cues (URL or outlet + headline) next to material claims"
         ),
     )
     source_summary: str = Field(
-        description="Primary URLs, outlets, or document titles relied on",
+        description=(
+            "Primary URLs, outlets, or document titles relied on—enough that a reader can verify "
+            "provenance"
+        ),
     )
     caveats: str = Field(
-        description="Gaps, stale items, uncertain claims, or conflicting sources",
+        description=(
+            "Gaps, stale items, uncertain or conflicting sources, low confidence matches, and any "
+            "same-name material deliberately excluded as likely the wrong person"
+        ),
     )
 
 
 class ReviewerResponse(BaseModel):
     """Quality and safety gate before showing the user the briefing."""
 
-    approved: bool = Field(description="True if the memo is ready for the user")
+    approved: bool = Field(
+        description=(
+            "True only if the memo is accurate, on-scope vs the planner, properly sourced, and "
+            "executive-ready"
+        ),
+    )
     issues: str = Field(
-        description="Specific failures: accuracy, missing citations, tone, or safety",
+        description=(
+            "If not approved: concrete failures (wrong or unverifiable claims, missing citations, "
+            "off-scope or homonym content, tone/safety). If approved: brief confirmation or 'none'"
+        ),
     )
     tone_and_safety_ok: bool = Field(
         description="Whether language is professional and appropriate for executives",
@@ -99,10 +131,18 @@ class SynthesizerResponse(BaseModel):
     executive_briefing_markdown: str = Field(
         description=(
             "Polished ~2-minute scan memo in Markdown: exec summary, attendees, "
-            "news hooks, risks, suggested talking points"
+            "news hooks, risks, suggested talking points. Use inline reference markers [1], [2] "
+            "for material facts where sources exist; omit markers only for purely structural text"
         ),
     )
     key_takeaways: list[str] = Field(
         default_factory=list,
         description="3–7 bullets the reader should remember walking into the room",
+    )
+    formatted_source_references: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Numbered or labeled lines matching inline memo markers, e.g. "
+            "'[1] https://… — Outlet (date): headline' or '[1] Company press release (date): title'"
+        ),
     )

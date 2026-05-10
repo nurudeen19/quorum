@@ -55,6 +55,22 @@ class ConversationWithMessagesResponse(BaseModel):
     messages: list[MessageResponse]
 
 
+class ConversationListItem(BaseModel):
+    """One row for the authenticated user's conversation list."""
+
+    id: UUID
+    title: str | None = Field(description="First user line or explicit title when set.")
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationMessagesResponse(BaseModel):
+    """All messages in a conversation (oldest first)."""
+
+    conversation_id: UUID
+    messages: list[MessageResponse]
+
+
 class AttendeeBriefing(BaseModel):
     """One person relevant to the briefing (first message only)."""
 
