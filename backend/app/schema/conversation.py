@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 MessageUserFeedback = Literal["up", "down"]
@@ -138,6 +138,24 @@ def format_briefing_context_user_message(ctx: BriefingContext) -> str:
             lines.append(f"- {a.name}")
     lines.extend(["", "Goal:", ctx.goal])
     return "\n".join(lines)
+
+
+def briefing_conversation_title(
+    ctx: BriefingContext,
+    *,
+    at: datetime | None = None,
+) -> str:
+    """Short list label: first attendee company or first name, plus the briefing date."""
+    when = at or datetime.now(timezone.utc)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    attendee = ctx.attendees[0]
+    company = (attendee.company or "").strip()
+    name = attendee.name.strip()
+    first_name = name.split()[0] if name else "Briefing"
+    label = company or first_name
+    date_label = when.astimezone(timezone.utc).strftime("%b %d, %Y")
+    return f"{label} · {date_label}"[:512]
 
 
 class ChatStreamRequest(BaseModel):

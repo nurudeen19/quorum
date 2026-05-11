@@ -18,6 +18,7 @@ from app.schema.conversation import (
     ConversationMessagesResponse,
     MessageFeedbackUpdate,
     MessageResponse,
+    briefing_conversation_title,
 )
 from app.services.chat_service import (
     ChatService,
@@ -153,12 +154,18 @@ async def chat_stream(
         )
 
     try:
+        conversation_title = (
+            briefing_conversation_title(body.briefing_context)
+            if body.briefing_context is not None
+            else None
+        )
         conversation_id, history_text = await chat_service.begin_user_turn(
             session,
             history,
             user_id=current.id,
             conversation_id=body.conversation_id,
             user_content=user_text,
+            conversation_title=conversation_title,
         )
     except ConversationNotFoundError:
         raise HTTPException(

@@ -107,6 +107,8 @@ class HistoryService:
         conversation_id: UUID,
         role: MessageRole,
         content: str,
+        *,
+        conversation_title: str | None = None,
     ) -> Message:
         """Insert message, update message tail in cache, sync agent summary field into cache."""
         msg = Message(
@@ -117,8 +119,12 @@ class HistoryService:
         session.add(msg)
         await session.flush()
         if role == MessageRole.user:
-            line = (content or "").strip().split("\n", 1)[0].strip()
-            title_val = (line[:200] + ("…" if len(line) > 200 else "")) if line else None
+            explicit = (conversation_title or "").strip()
+            if explicit:
+                title_val = explicit[:512]
+            else:
+                line = (content or "").strip().split("\n", 1)[0].strip()
+                title_val = (line[:200] + ("…" if len(line) > 200 else "")) if line else None
             if title_val:
                 await session.execute(
                     update(Conversation)

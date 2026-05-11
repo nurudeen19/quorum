@@ -27,7 +27,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def configure_langsmith_tracing(agents: AgentsConfig) -> None:
-    """Configure LangSmith tracing once at app startup (one-time setup)."""
+    """Map LangSmith settings to LangChain tracing env vars when enabled."""
     if not agents.langsmith_tracing_enabled:
         return
     if not agents.langsmith_api_key or not str(agents.langsmith_api_key).strip():

@@ -12,6 +12,7 @@ import logging
 from typing import Any, TypeVar
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
 
 from app.config.settings import Settings, get_settings
@@ -144,7 +145,7 @@ class _BriefingNodes:
             )
         return {"validation_error": None}
 
-    async def planner(self, state: BriefingState) -> dict[str, Any]:
+    async def planner(self, state: BriefingState, config: RunnableConfig) -> dict[str, Any]:
         ba = self._factory.briefing_agents
         rejection = (state.get("review_rejection_notes") or "").strip()
         if rejection:
@@ -157,7 +158,7 @@ class _BriefingNodes:
             human = _planner_primary_human(state)
             is_rework = False
 
-        result = await agent.ainvoke({"messages": [HumanMessage(content=human)]})
+        result = await agent.ainvoke({"messages": [HumanMessage(content=human)]}, config=config)
         out = _agent_structured(result, PlannerResponse)
         if is_rework:
             out = _normalize_planner_rework(out)
@@ -175,14 +176,17 @@ class _BriefingNodes:
 
         return {"planner_output": out.model_dump(), "status": "pending"}
 
-    async def research(self, state: BriefingState) -> dict[str, Any]:
+    async def research(self, state: BriefingState, config: RunnableConfig) -> dict[str, Any]:
         po = state.get("planner_output") or {}
         human = _research_human_task(state, po)
-        result = await self._factory.briefing_agents.research.ainvoke({"messages": [HumanMessage(content=human)]})
+        result = await self._factory.briefing_agents.research.ainvoke(
+            {"messages": [HumanMessage(content=human)]},
+            config=config,
+        )
         research_out = _agent_structured(result, ResearchResponse)
         return {"research_output": research_out.model_dump()}
 
-    async def synthesizer(self, state: BriefingState) -> dict[str, Any]:
+    async def synthesizer(self, state: BriefingState, config: RunnableConfig) -> dict[str, Any]:
         po = state.get("planner_output") or {}
         ro = state.get("research_output") or {}
         payload = json.dumps(
@@ -196,11 +200,14 @@ class _BriefingNodes:
             "names/spelling when they clarify attendees.\n\n"
             + payload
         )
-        result = await self._factory.briefing_agents.synthesizer.ainvoke({"messages": [HumanMessage(content=human)]})
+        result = await self._factory.briefing_agents.synthesizer.ainvoke(
+            {"messages": [HumanMessage(content=human)]},
+            config=config,
+        )
         out = _agent_structured(result, SynthesizerResponse)
         return {"synthesizer_output": out.model_dump()}
 
-    async def reviewer(self, state: BriefingState) -> dict[str, Any]:
+    async def reviewer(self, state: BriefingState, config: RunnableConfig) -> dict[str, Any]:
         po = state.get("planner_output") or {}
         ro = state.get("research_output") or {}
         so = state.get("synthesizer_output") or {}
@@ -217,7 +224,10 @@ class _BriefingNodes:
             "coherence, and tone.\n\n"
             f"{bundle}"
         )
-        result = await self._factory.briefing_agents.reviewer.ainvoke({"messages": [HumanMessage(content=human)]})
+        result = await self._factory.briefing_agents.reviewer.ainvoke(
+            {"messages": [HumanMessage(content=human)]},
+            config=config,
+        )
         verdict = _agent_structured(result, ReviewerResponse)
         return _review_updates(
             verdict=verdict,

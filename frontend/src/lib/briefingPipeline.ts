@@ -37,3 +37,23 @@ export function derivePipelineStage(state: Record<string, unknown> | null): stri
   if (st === "completed") return "Finishing up…";
   return "Quality review…";
 }
+
+/** Best-effort assistant body while SSE state events arrive (before the final reply). */
+export function extractStreamingPreview(state: Record<string, unknown> | null): string | null {
+  if (!state) return null;
+
+  const final = state["final_user_message"];
+  if (typeof final === "string" && final.trim()) return final.trim();
+
+  const validation = state["validation_error"];
+  if (typeof validation === "string" && validation.trim()) return validation.trim();
+
+  const synthesizer = state["synthesizer_output"];
+  if (synthesizer && typeof synthesizer === "object") {
+    const memo = (synthesizer as { executive_briefing_markdown?: unknown })
+      .executive_briefing_markdown;
+    if (typeof memo === "string" && memo.trim()) return memo.trim();
+  }
+
+  return null;
+}

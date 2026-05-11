@@ -8,7 +8,8 @@ import { streamChat } from "@/api/chat";
 import * as conversationsApi from "@/api/conversations";
 import { ApiError } from "@/api/http";
 import SafeMarkdown from "@/components/SafeMarkdown.vue";
-import { derivePipelineStage } from "@/lib/briefingPipeline";
+import { derivePipelineStage, extractStreamingPreview } from "@/lib/briefingPipeline";
+import { formatBriefingConversationTitle } from "@/lib/conversationTitle";
 import { useAuthStore } from "@/stores/auth";
 import { useChatSessionsStore } from "@/stores/chatSessions";
 
@@ -98,6 +99,52 @@ function briefingPreview(ctx: BriefingContext): string {
   return lines.join("\n");
 }
 
+function beginStreamingAssistant(): void {
+  activeMessages.value.push({
+    role: "assistant",
+    content: pipelineStage.value,
+    streaming: true,
+  });
+}
+
+function updateStreamingAssistant(state: Record<string, unknown>): void {
+  pipelineStage.value = derivePipelineStage(state);
+  const preview = extractStreamingPreview(state);
+  const body = preview ?? pipelineStage.value;
+  const messages = activeMessages.value;
+  const last = messages[messages.length - 1];
+  if (last?.role === "assistant" && last.streaming) {
+    last.content = body;
+    return;
+  }
+  messages.push({ role: "assistant", content: body, streaming: true });
+}
+
+function finalizeStreamingAssistant(content: string): void {
+  const messages = activeMessages.value;
+  const last = messages[messages.length - 1];
+  if (last?.role === "assistant" && last.streaming) {
+    last.content = content;
+    delete last.streaming;
+    return;
+  }
+  messages.push({ role: "assistant", content });
+}
+
+function upsertOptimisticConversation(id: string, title: string): void {
+  const now = new Date().toISOString();
+  const existing = remoteList.value.find((c) => c.id === id);
+  if (existing) {
+    existing.title = title;
+    existing.updated_at = now;
+    return;
+  }
+  remoteList.value = [
+    { id, title, created_at: now, updated_at: now },
+    ...remoteList.value,
+  ];
+}
+
 function buildBriefingContext(): BriefingContext | null {
   const cleaned: AttendeeBriefing[] = [];
   for (const a of draftAttendees.value) {
@@ -123,7 +170,9 @@ async function submitBriefing() {
   loading.value = true;
   pipelineStage.value = derivePipelineStage(null);
   const userPreview = briefingPreview(ctx);
+  const listTitle = formatBriefingConversationTitle(ctx);
   activeMessages.value = [{ role: "user", content: userPreview }];
+  beginStreamingAssistant();
 
   let lastState: Record<string, unknown> | null = null;
 
@@ -133,17 +182,18 @@ async function submitBriefing() {
       {
         onMeta: (id) => {
           activeConversationId.value = id;
+          upsertOptimisticConversation(id, listTitle);
         },
         onState: (data: Record<string, unknown>) => {
           lastState = data;
-          pipelineStage.value = derivePipelineStage(data);
+          updateStreamingAssistant(data);
+          void scrollChatToBottom();
         },
         onDone: () => {},
       },
     );
 
-    const assistant = extractAssistantReply(lastState);
-    activeMessages.value.push({ role: "assistant", content: assistant });
+    finalizeStreamingAssistant(extractAssistantReply(lastState));
     await sessions.refreshAfterTurn();
     await scrollChatToBottom();
     await focusFollowUpInput();
@@ -169,6 +219,7 @@ async function submitFollowUp() {
   pipelineStage.value = derivePipelineStage(null);
   activeMessages.value.push({ role: "user", content: text });
   followUp.value = "";
+  beginStreamingAssistant();
 
   let lastState: Record<string, unknown> | null = null;
 
@@ -178,13 +229,13 @@ async function submitFollowUp() {
       {
         onState: (data: Record<string, unknown>) => {
           lastState = data;
-          pipelineStage.value = derivePipelineStage(data);
+          updateStreamingAssistant(data);
+          void scrollChatToBottom();
         },
       },
     );
 
-    const assistant = extractAssistantReply(lastState);
-    activeMessages.value.push({ role: "assistant", content: assistant });
+    finalizeStreamingAssistant(extractAssistantReply(lastState));
     await sessions.refreshAfterTurn();
     await scrollChatToBottom();
     await focusFollowUpInput();
@@ -519,7 +570,17 @@ const inputClass =
                 >
                   {{ m.role === "user" ? "You" : "Assistant" }}
                 </div>
-                <SafeMarkdown :source="m.content" />
+                <div
+                  :class="m.role === 'assistant' && m.streaming ? 'streaming-markdown' : undefined"
+                >
+                  <SafeMarkdown :source="m.content" />
+                </div>
+                <p
+                  v-if="m.role === 'assistant' && m.streaming"
+                  class="mt-2 text-xs font-medium text-cyan-300/90"
+                >
+                  {{ pipelineStage }}
+                </p>
                 <div
                   v-if="m.role === 'assistant' && m.id"
                   class="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-700/60 pt-3"
@@ -561,7 +622,14 @@ const inputClass =
               </div>
             </div>
 
-            <div v-if="loading && activeMessages.length > 0" class="flex justify-start">
+            <div
+              v-if="
+                loading &&
+                activeMessages.length > 0 &&
+                !activeMessages[activeMessages.length - 1]?.streaming
+              "
+              class="flex justify-start"
+            >
               <div
                 class="pipeline-card max-w-[min(100%,42rem)] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/70 px-5 py-4 shadow-lg shadow-cyan-500/5 ring-1 ring-cyan-500/10"
               >
@@ -698,6 +766,28 @@ const inputClass =
   }
   40% {
     transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.streaming-markdown :deep(p:last-child)::after {
+  content: "";
+  display: inline-block;
+  width: 0.45rem;
+  height: 1em;
+  margin-left: 0.15rem;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: rgba(34, 211, 238, 0.85);
+  animation: stream-caret 1s ease-in-out infinite;
+}
+
+@keyframes stream-caret {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
     opacity: 1;
   }
 }

@@ -158,6 +158,7 @@ class ChatService:
         user_id: UUID,
         conversation_id: UUID | None,
         user_content: str,
+        conversation_title: str | None = None,
     ) -> tuple[UUID, str]:
         """Start a user turn: conversation selection, history retrieval, then store the user line.
 
@@ -173,7 +174,13 @@ class ChatService:
         )
         snap = await history.get_history(session, cid)
         history_text = format_history_for_chat(snap)
-        await history.record_message(session, cid, MessageRole.user, user_content)
+        await history.record_message(
+            session,
+            cid,
+            MessageRole.user,
+            user_content,
+            conversation_title=conversation_title,
+        )
         return cid, history_text
 
     async def record_assistant_turn(

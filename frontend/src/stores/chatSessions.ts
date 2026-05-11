@@ -9,6 +9,7 @@ import type { AttendeeBriefing } from "@/api/chat";
 import * as conversationsApi from "@/api/conversations";
 import type { ConversationListItem } from "@/api/conversations";
 import { ApiError } from "@/api/http";
+import { displayConversationTitle } from "@/lib/conversationTitle";
 
 export interface ChatMessage {
   id?: string;
@@ -16,15 +17,12 @@ export interface ChatMessage {
   content: string;
   /** Thumbs rating for assistant messages (from API after load). */
   feedback?: "up" | "down" | null;
+  /** True while the assistant reply is still arriving over SSE. */
+  streaming?: boolean;
 }
 
 function defaultDraftAttendees(): AttendeeBriefing[] {
   return [{ name: "", company: "" }];
-}
-
-function displayTitle(c: ConversationListItem): string {
-  if (c.title && c.title.trim()) return c.title.trim();
-  return `Briefing · ${c.id.slice(0, 8)}`;
 }
 
 export const useChatSessionsStore = defineStore("chatSessions", () => {
@@ -137,6 +135,6 @@ export const useChatSessionsStore = defineStore("chatSessions", () => {
     deleteRemoteConversation,
     refreshAfterTurn,
     resetForLogout,
-    displayTitle,
+    displayTitle: displayConversationTitle,
   };
 });

@@ -12,4 +12,3 @@ app = create_fastapi_app(
 )
 
 app.include_router(api_router)
-
