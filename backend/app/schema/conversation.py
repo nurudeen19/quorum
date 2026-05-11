@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+
+MessageUserFeedback = Literal["up", "down"]
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -27,6 +29,10 @@ class MessageResponse(BaseModel):
     id: UUID
     role: MessageRole
     content: str
+    user_feedback: MessageUserFeedback | None = Field(
+        default=None,
+        description="Thumbs feedback on assistant messages; null if unset.",
+    )
     created_at: datetime
 
 
@@ -180,3 +186,11 @@ class ChatStreamRequest(BaseModel):
             return format_briefing_context_user_message(self.briefing_context)
         assert self.content is not None
         return self.content.strip()
+
+
+class MessageFeedbackUpdate(BaseModel):
+    """Set or clear thumbs feedback on an assistant message."""
+
+    feedback: MessageUserFeedback | None = Field(
+        description="Use 'up' or 'down' to set rating; null to clear.",
+    )

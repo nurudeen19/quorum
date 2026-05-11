@@ -14,21 +14,23 @@ from structlog.typing import Processor
 from app.config import AppSettings, get_settings
 
 
-def _shared_pre_chain() -> list[Processor]:
+def _shared_pre_chain(*, include_format_exc_info: bool = False) -> list[Processor]:
     """Processors applied to every event (and to foreign stdlib records via ``ProcessorFormatter``)."""
-    return [
+    chain: list[Processor] = [
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.stdlib.add_log_level,
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
     ]
+    if include_format_exc_info:
+        chain.append(structlog.processors.format_exc_info)
+    return chain
 
 
-def _formatter(renderer: Processor) -> ProcessorFormatter:
+def _formatter(renderer: Processor, *, include_format_exc_info: bool = False) -> ProcessorFormatter:
     """Build a stdlib formatter that renders structlog events with ``renderer``."""
     return ProcessorFormatter(
         processor=renderer,
-        foreign_pre_chain=_shared_pre_chain(),
+        foreign_pre_chain=_shared_pre_chain(include_format_exc_info=include_format_exc_info),
     )
 
 
@@ -75,7 +77,9 @@ def setup_logging(settings: AppSettings | None = None) -> None:
                 encoding="utf-8",
             )
             file_handler.setLevel(log_level)
-            file_handler.setFormatter(_formatter(structlog.processors.JSONRenderer()))
+            file_handler.setFormatter(
+                _formatter(structlog.processors.JSONRenderer(), include_format_exc_info=True)
+            )
             handlers.append(file_handler)
         except OSError as exc:
             logging.basicConfig(level=log_level)

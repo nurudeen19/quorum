@@ -1,6 +1,6 @@
 """Core application setup utilities."""
 
-from app.core.agent_factory import AgentFactory
+from app.core.agent_factory import AgentFactory, BriefingAgents
 from app.core.bootstrap import (
     ApplicationBootstrap,
     create_fastapi_app,
@@ -26,6 +26,7 @@ from app.core.tracing import setup_tracing
 
 __all__ = [
     "AgentFactory",
+    "BriefingAgents",
     "setup_logging",
     "setup_tracing",
     "setup_metrics",

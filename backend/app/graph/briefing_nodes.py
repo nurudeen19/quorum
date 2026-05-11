@@ -1,22 +1,19 @@
 """Graph node callables (guardrails → planner → research → synthesizer → reviewer).
 
 See :mod:`app.graph.briefing_graph` for how these connect.
+
+**Reusable briefing agents**
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, TypeVar
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage
+from pydantic import BaseModel
 
-from app.agents.planner import PlannerAgent
-from app.agents.research import ResearchAgent
-from app.agents.reviewer import ReviewerAgent
-from app.agents.synthesizer import SynthesizerAgent
-from app.config.agents import AgentsConfig
 from app.config.settings import Settings, get_settings
 from app.core.agent_factory import AgentFactory
 from app.graph.briefing_graph import BriefingState
@@ -26,12 +23,80 @@ from app.schema.agents import PlannerResponse, ResearchResponse, ReviewerRespons
 
 logger = logging.getLogger(__name__)
 
-_RESEARCH_STRUCTURE_USER = (
-    "Based strictly on the conversation and tool results above, emit one structured research "
-    "response. Include only evidence scoped to the planner's attendees and companies; exclude "
-    "unrelated same-name individuals. Attribute claims to sources in raw_report and "
-    "source_summary. Use caveats for uncertainty, conflicts, or deliberately omitted ambiguous hits."
-)
+_CONTEXT_SNIP_CAP = 12_000
+
+TStruct = TypeVar("TStruct", bound=BaseModel)
+
+
+def _agent_structured(result: Any, model: type[TStruct]) -> TStruct:
+    """Extract Pydantic output from a LangChain ``create_agent`` graph result."""
+    if not isinstance(result, dict):
+        raise TypeError(f"Expected dict agent result, got {type(result).__name__}")
+    sr = result.get("structured_response")
+    if isinstance(sr, model):
+        return sr
+    if sr is not None:
+        return model.model_validate(sr)
+    raise ValueError(
+        "Briefing agent returned no structured_response; check model/tool configuration and logs."
+    )
+
+
+def _research_human_task(state: BriefingState, planner_output: dict[str, Any]) -> str:
+    """Planner JSON is authoritative; user text and history add spellings and clarifications."""
+    body = json.dumps(planner_output, indent=2, default=str)[:80_000]
+    lines = [
+        "Execute the planner output below. Use web search tools as needed, then respond with the "
+        "structured research fields (raw_report, source_summary, caveats) grounded in tool results.",
+        "",
+        "Planner output (authoritative scope for who and what to research):",
+        body,
+    ]
+    user_msg = (state.get("user_message") or "").strip()
+    if user_msg:
+        lines.extend(
+            ["", "Current user message (verbatim phrasing and spellings):", user_msg[:_CONTEXT_SNIP_CAP]]
+        )
+    history = (state.get("conversation_history") or "").strip()
+    if history:
+        lines.extend(
+            [
+                "",
+                "Prior conversation (context only; if this conflicts with the planner, follow the planner):",
+                history[:_CONTEXT_SNIP_CAP],
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _synthesizer_payload(
+    state: BriefingState, planner: dict[str, Any], research: dict[str, Any]
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"planner": planner, "research": research}
+    user_msg = (state.get("user_message") or "").strip()
+    if user_msg:
+        payload["user_message"] = user_msg[:_CONTEXT_SNIP_CAP]
+    history = (state.get("conversation_history") or "").strip()
+    if history:
+        payload["conversation_history"] = history[:_CONTEXT_SNIP_CAP]
+    return payload
+
+
+def _reviewer_bundle(
+    state: BriefingState,
+    planner: dict[str, Any],
+    research: dict[str, Any],
+    synthesizer: dict[str, Any],
+) -> dict[str, Any]:
+    bundle: dict[str, Any] = {
+        "planner": planner,
+        "research": research,
+        "synthesizer": synthesizer,
+    }
+    user_msg = (state.get("user_message") or "").strip()
+    if user_msg:
+        bundle["user_message"] = user_msg[:_CONTEXT_SNIP_CAP]
+    return bundle
 
 
 def build_briefing_nodes(factory: AgentFactory) -> dict[str, Any]:
@@ -49,9 +114,6 @@ def build_briefing_nodes(factory: AgentFactory) -> dict[str, Any]:
 class _BriefingNodes:
     def __init__(self, factory: AgentFactory) -> None:
         self._factory = factory
-
-    def _cfg(self) -> AgentsConfig:
-        return self._factory.agents_config
 
     def _settings(self) -> Settings:
         return get_settings()
@@ -83,11 +145,20 @@ class _BriefingNodes:
         return {"validation_error": None}
 
     async def planner(self, state: BriefingState) -> dict[str, Any]:
-        llm = self._factory.build_model_for_role("planner")
-        structured = llm.with_structured_output(PlannerResponse)
-        messages, is_rework = _planner_messages(state, self._cfg())
+        ba = self._factory.briefing_agents
+        rejection = (state.get("review_rejection_notes") or "").strip()
+        if rejection:
+            agent = ba.planner_rework
+            user_msg = (state.get("user_message") or "").strip()
+            human = _planner_rework_human(user_msg=user_msg, rejection=rejection, state=state)
+            is_rework = True
+        else:
+            agent = ba.planner_primary
+            human = _planner_primary_human(state)
+            is_rework = False
 
-        out: PlannerResponse = await structured.ainvoke(messages)
+        result = await agent.ainvoke({"messages": [HumanMessage(content=human)]})
+        out = _agent_structured(result, PlannerResponse)
         if is_rework:
             out = _normalize_planner_rework(out)
 
@@ -106,65 +177,48 @@ class _BriefingNodes:
 
     async def research(self, state: BriefingState) -> dict[str, Any]:
         po = state.get("planner_output") or {}
-        task = json.dumps(po, indent=2, default=str)[:80_000]
-        cfg = self._cfg()
-        llm = self._factory.build_model_for_role("research")
-        messages = await _invoke_tools_until_done(
-            llm,
-            system_prompt=ResearchAgent.resolve_instructions(cfg),
-            human_task="Execute the planner output below. Use tools for live web search.\n\n" + task,
-            tools=ResearchAgent.tools,
-        )
-        parse_llm = self._factory.build_model_for_role("research")
-        structured = parse_llm.with_structured_output(ResearchResponse)
-        research_out: ResearchResponse = await structured.ainvoke(
-            messages + [HumanMessage(content=_RESEARCH_STRUCTURE_USER)]
-        )
+        human = _research_human_task(state, po)
+        result = await self._factory.briefing_agents.research.ainvoke({"messages": [HumanMessage(content=human)]})
+        research_out = _agent_structured(result, ResearchResponse)
         return {"research_output": research_out.model_dump()}
 
     async def synthesizer(self, state: BriefingState) -> dict[str, Any]:
         po = state.get("planner_output") or {}
         ro = state.get("research_output") or {}
-        cfg = self._cfg()
-        llm = self._factory.build_model_for_role("synthesizer")
-        structured = llm.with_structured_output(SynthesizerResponse)
-        payload = json.dumps({"planner": po, "research": ro}, indent=2, default=str)[:100_000]
-        out: SynthesizerResponse = await structured.ainvoke(
-            [
-                SystemMessage(content=SynthesizerAgent.resolve_instructions(cfg)),
-                HumanMessage(
-                    content="Produce the executive briefing memo from this JSON:\n\n" + payload
-                ),
-            ]
+        payload = json.dumps(
+            _synthesizer_payload(state, po, ro),
+            indent=2,
+            default=str,
+        )[:100_000]
+        human = (
+            "Produce the executive briefing memo from this JSON. "
+            "Treat planner as authoritative for scope; use user_message for verbatim "
+            "names/spelling when they clarify attendees.\n\n"
+            + payload
         )
+        result = await self._factory.briefing_agents.synthesizer.ainvoke({"messages": [HumanMessage(content=human)]})
+        out = _agent_structured(result, SynthesizerResponse)
         return {"synthesizer_output": out.model_dump()}
 
     async def reviewer(self, state: BriefingState) -> dict[str, Any]:
         po = state.get("planner_output") or {}
         ro = state.get("research_output") or {}
         so = state.get("synthesizer_output") or {}
-        cfg = self._cfg()
-        llm = self._factory.build_model_for_role("reviewer")
-        structured = llm.with_structured_output(ReviewerResponse)
         bundle = json.dumps(
-            {"planner": po, "research": ro, "synthesizer": so},
+            _reviewer_bundle(state, po, ro, so),
             indent=2,
             default=str,
         )[:120_000]
-        verdict: ReviewerResponse = await structured.ainvoke(
-            [
-                SystemMessage(content=ReviewerAgent.resolve_instructions(cfg)),
-                HumanMessage(
-                    content=(
-                        "Evaluate whether the synthesizer memo is acceptable for an executive reader. "
-                        "Confirm alignment with planner scope (meeting subject, each attendee name "
-                        "and company, briefing_goal, context_notes/disambiguation), accuracy vs "
-                        "research, citations/source list coherence, and tone.\n\n"
-                        f"{bundle}"
-                    )
-                ),
-            ]
+        human = (
+            "Evaluate whether the synthesizer memo is acceptable for an executive reader. "
+            "Confirm alignment with planner scope (meeting subject, each attendee name "
+            "and company, briefing_goal, context_notes/disambiguation) and with "
+            "user_message when present, accuracy vs research, citations/source list "
+            "coherence, and tone.\n\n"
+            f"{bundle}"
         )
+        result = await self._factory.briefing_agents.reviewer.ainvoke({"messages": [HumanMessage(content=human)]})
+        verdict = _agent_structured(result, ReviewerResponse)
         return _review_updates(
             verdict=verdict,
             synthesizer_output=so,
@@ -212,24 +266,15 @@ def _review_updates(
     }
 
 
-def _planner_messages(state: BriefingState, cfg: AgentsConfig) -> tuple[list[Any], bool]:
+def _planner_primary_human(state: BriefingState) -> str:
     history = (state.get("conversation_history") or "").strip() or "(no prior conversation)"
     user_msg = (state.get("user_message") or "").strip()
-    rejection = (state.get("review_rejection_notes") or "").strip()
-
-    if rejection:
-        system = PlannerAgent.resolve_rework_instructions(cfg)
-        human = _planner_rework_human(user_msg=user_msg, rejection=rejection, state=state)
-        return ([SystemMessage(content=system), HumanMessage(content=human)], True)
-
-    system = PlannerAgent.resolve_primary_instructions(cfg)
-    human = (
+    return (
         "Conversation history (only you see this—encode needed facts into your plan):\n"
         f"{history}\n\n"
         "Current user message (meeting subject, attendees with companies, goals):\n"
         f"{user_msg}"
     )
-    return ([SystemMessage(content=system), HumanMessage(content=human)], False)
 
 
 def _planner_rework_human(
@@ -269,43 +314,3 @@ def _normalize_planner_rework(out: PlannerResponse) -> PlannerResponse:
             or "Address reviewer feedback in the next iteration.",
         }
     )
-
-
-async def _invoke_tools_until_done(
-    llm: Any,
-    *,
-    system_prompt: str,
-    human_task: str,
-    tools: tuple[Any, ...],
-    max_steps: int = 12,
-) -> list[Any]:
-    messages: list[Any] = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=human_task),
-    ]
-    model = llm.bind_tools(list(tools))
-    for _ in range(max_steps):
-        ai = await model.ainvoke(messages)
-        messages.append(ai)
-        if not isinstance(ai, AIMessage) or not ai.tool_calls:
-            break
-        for tc in ai.tool_calls:
-            name = tc["name"] if isinstance(tc, dict) else getattr(tc, "name", "")
-            tc_id = tc["id"] if isinstance(tc, dict) else getattr(tc, "id", "")
-            args = tc["args"] if isinstance(tc, dict) else getattr(tc, "args", {})
-            tool_fn = next((t for t in tools if getattr(t, "name", None) == name), None)
-            if tool_fn is None:
-                messages.append(
-                    ToolMessage(content=f"Unknown tool {name}", tool_call_id=tc_id)
-                )
-                continue
-            try:
-                out = await asyncio.to_thread(tool_fn.invoke, args)
-            except Exception as exc:
-                out = f"Tool error: {exc}"
-                logger.warning(
-                    "briefing_tool_invoke_failed",
-                    extra={"tool": name, "error_type": type(exc).__name__},
-                )
-            messages.append(ToolMessage(content=str(out), tool_call_id=tc_id))
-    return messages

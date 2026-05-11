@@ -118,8 +118,10 @@ class AgentsConfig(BaseModel):
     synthesizer_max_tokens: int = Field(default=3000, ge=1, alias="SYNTHESIZER_MAX_TOKENS")
     synthesizer_model: str = Field(default="llama-3.3-70b-versatile", alias="SYNTHESIZER_MODEL")
     synthesizer_model_provider: ModelProvider = Field(default="groq", alias="SYNTHESIZER_MODEL_PROVIDER")
-    synthesizer_fallback_model: str | None = Field(default=None, alias="SYNTHESIZER_FALLBACK_MODEL")
-    synthesizer_fallback_model_provider: ModelProvider | None = Field(default=None, alias="SYNTHESIZER_FALLBACK_MODEL_PROVIDER")
+    synthesizer_fallback_model: str | None = Field(default="gpt-4o-mini", alias="SYNTHESIZER_FALLBACK_MODEL")
+    synthesizer_fallback_model_provider: ModelProvider | None = Field(
+        default="openai", alias="SYNTHESIZER_FALLBACK_MODEL_PROVIDER"
+    )
 
     # ========================
     # System prompt overrides (optional; non-empty replaces each role's class-defined default)

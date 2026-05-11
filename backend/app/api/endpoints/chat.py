@@ -16,6 +16,7 @@ from app.schema.conversation import (
     ChatStreamRequest,
     ConversationListItem,
     ConversationMessagesResponse,
+    MessageFeedbackUpdate,
     MessageResponse,
 )
 from app.services.chat_service import (
@@ -75,6 +76,33 @@ async def get_conversation_messages(
         conversation_id=conversation_id,
         messages=[MessageResponse.model_validate(m) for m in msgs],
     )
+
+
+@router.patch(
+    "/messages/{message_id}/feedback",
+    response_model=MessageResponse,
+    summary="Rate an assistant message (thumbs up/down)",
+)
+async def patch_message_feedback(
+    message_id: UUID,
+    body: MessageFeedbackUpdate,
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    history: HistoryService = Depends(get_history_service),
+) -> MessageResponse:
+    """Set or clear user feedback on an assistant reply (owner's conversation only)."""
+    msg = await history.set_message_feedback_for_user(
+        session,
+        current.id,
+        message_id,
+        body.feedback,
+    )
+    if msg is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found, not an assistant reply, or not in your conversation.",
+        )
+    return MessageResponse.model_validate(msg)
 
 
 @router.delete(

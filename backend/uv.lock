@@ -444,7 +444,7 @@ requires-dist = [
     { name = "langchain-groq", specifier = ">=1.1.2" },
     { name = "langchain-openai", specifier = ">=1.2.1" },
     { name = "langchain-tavily", specifier = ">=0.2.18" },
-    { name = "langgraph", specifier = ">=0.2.76" },
+    { name = "langgraph", specifier = ">=1.1.10" },
     { name = "litellm", specifier = ">=1.0" },
     { name = "mailtrap", specifier = ">=2.5.0" },
     { name = "opentelemetry-api", specifier = ">=1.25.0" },

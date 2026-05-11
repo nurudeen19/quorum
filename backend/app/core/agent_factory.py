@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from typing import Any, cast
 
 import structlog
@@ -13,7 +14,11 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from app.config.agents import AgentLLMConfig, AgentName, AgentsConfig, ModelProvider
+from app.agents.planner import PlannerAgent
+from app.agents.research import ResearchAgent
+from app.agents.reviewer import ReviewerAgent
+from app.agents.synthesizer import SynthesizerAgent
+from app.config.agents import AgentName, AgentsConfig, ModelProvider
 from app.core.exceptions import StartupConfigurationError
 
 logger = structlog.get_logger(__name__)
@@ -35,16 +40,39 @@ def configure_langsmith_tracing(agents: AgentsConfig) -> None:
     logger.info("langsmith_tracing_enabled", project=agents.langsmith_project)
 
 
+@dataclass(frozen=True, slots=True)
+class BriefingAgents:
+    """References to the pre-built briefing LangGraph agents (owned by each role class)."""
+
+    planner_primary: Any
+    planner_rework: Any
+    research: Any
+    synthesizer: Any
+    reviewer: Any
+
+
 class AgentFactory:
-    """Create LangChain agents from role parameters."""
+    """Builds chat models and ``create_agent`` graphs; briefing graphs are created via role classes."""
 
     def __init__(self, agents: AgentsConfig) -> None:
         self._agents = agents
+        self._briefing_agents = BriefingAgents(
+            planner_primary=PlannerAgent.ensure_primary_graph(self),
+            planner_rework=PlannerAgent.ensure_rework_graph(self),
+            research=ResearchAgent.ensure_graph(self),
+            synthesizer=SynthesizerAgent.ensure_graph(self),
+            reviewer=ReviewerAgent.ensure_graph(self),
+        )
 
     @property
     def agents_config(self) -> AgentsConfig:
         """Settings bundle used for models and optional system-prompt overrides."""
         return self._agents
+
+    @property
+    def briefing_agents(self) -> BriefingAgents:
+        """Pre-built ``create_agent`` graphs (singletons on each role class)."""
+        return self._briefing_agents
 
     def create_agent(
         self,
@@ -55,7 +83,7 @@ class AgentFactory:
         tools: tuple[Any, ...] | None = None,
         response_format: type[BaseModel] | None,
     ) -> Any:
-        """Create an agent instance from explicit role parameters."""
+        """Wire ``create_agent`` with a model for ``role``; ``name``/instructions come from the caller."""
         model = self._build_model(role)
         return create_agent(
             name=name,
@@ -66,7 +94,7 @@ class AgentFactory:
         )
 
     def build_model_for_role(self, role: AgentName) -> BaseChatModel:
-        """Public helper for chat completions (e.g. conversation summarization)."""
+        """Return a chat model for ad-hoc completions (e.g. conversation summarization)."""
         return self._build_model(role)
 
     def _build_model(self, role: AgentName) -> BaseChatModel:

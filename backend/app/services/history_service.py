@@ -282,6 +282,28 @@ class HistoryService:
         )
         return list((await session.scalars(stmt)).all())
 
+    async def set_message_feedback_for_user(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        message_id: UUID,
+        feedback: str | None,
+    ) -> Message | None:
+        """Set ``user_feedback`` on an assistant message if the conversation is owned by ``user_id``."""
+        msg = await session.scalar(select(Message).where(Message.id == message_id))
+        if msg is None:
+            return None
+        conv = await self.get_conversation(session, user_id, msg.conversation_id)
+        if conv is None:
+            return None
+        if msg.role != MessageRole.assistant:
+            return None
+        if feedback is not None and feedback not in ("up", "down"):
+            return None
+        msg.user_feedback = feedback
+        await session.flush()
+        return msg
+
     async def delete_conversation_for_user(
         self,
         session: AsyncSession,
