@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from app.core.rate_limit import limiter
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +37,7 @@ router = APIRouter()
     response_model=list[ConversationListItem],
     summary="List my conversations",
 )
+@limiter.limit(get_settings().rate_limits.chat_list)
 async def list_my_conversations(
     current: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
@@ -60,6 +62,7 @@ async def list_my_conversations(
     response_model=ConversationMessagesResponse,
     summary="Load messages for a conversation",
 )
+@limiter.limit(get_settings().rate_limits.chat_messages)
 async def get_conversation_messages(
     conversation_id: UUID,
     current: User = Depends(get_current_user),
@@ -84,6 +87,7 @@ async def get_conversation_messages(
     response_model=MessageResponse,
     summary="Rate an assistant message (thumbs up/down)",
 )
+@limiter.limit(get_settings().rate_limits.chat_feedback)
 async def patch_message_feedback(
     message_id: UUID,
     body: MessageFeedbackUpdate,
@@ -111,6 +115,7 @@ async def patch_message_feedback(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a conversation",
 )
+@limiter.limit(get_settings().rate_limits.chat_delete)
 async def delete_my_conversation(
     conversation_id: UUID,
     current: User = Depends(get_current_user),
@@ -137,6 +142,7 @@ async def delete_my_conversation(
     ),
     response_class=StreamingResponse,
 )
+@limiter.limit(get_settings().rate_limits.chat_stream)
 async def chat_stream(
     body: ChatStreamRequest,
     current: User = Depends(get_current_user),

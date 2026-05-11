@@ -18,3 +18,10 @@ class RateLimitsSettings(BaseModel):
     auth_forgot_password: str = Field(default="5/minute", alias="RATE_LIMIT_AUTH_FORGOT_PASSWORD")
     auth_reset_password: str = Field(default="10/minute", alias="RATE_LIMIT_AUTH_RESET_PASSWORD")
     auth_logout: str = Field(default="30/minute", alias="RATE_LIMIT_AUTH_LOGOUT")
+
+    # Chat endpoints
+    chat_list: str = Field(default="60/minute", alias="RATE_LIMIT_CHAT_LIST")
+    chat_messages: str = Field(default="60/minute", alias="RATE_LIMIT_CHAT_MESSAGES")
+    chat_feedback: str = Field(default="30/minute", alias="RATE_LIMIT_CHAT_FEEDBACK")
+    chat_delete: str = Field(default="30/minute", alias="RATE_LIMIT_CHAT_DELETE")
+    chat_stream: str = Field(default="30/hour", alias="RATE_LIMIT_CHAT_STREAM")
