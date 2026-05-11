@@ -44,7 +44,8 @@ npm run dev
 
 ## Next steps
 
-- **New to the project?** → Read [Architecture](docs/architecture.md) to understand the design
+- **New to the project?** → Read [Architecture](docs/architecture.md) for the system design and folder structure
+- **Understand design choices?** → See [Design Decisions](docs/design_decisions.md) for the "why" behind key decisions
 - **Setting up locally?** → See [Backend](backend/README.md) and [Frontend](frontend/README.md) READMEs
-- **Want to modify agents?** → Check out [Agent Orchestration](docs/architecture.md#agent-orchestration-flow)
+- **Want to modify agents?** → Check out [Agent Orchestration](docs/architecture.md#agent-orchestration-pipeline)
 
