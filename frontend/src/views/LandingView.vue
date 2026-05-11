@@ -1,5 +1,14 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { RouterLink } from "vue-router";
+
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
+
+onMounted(async () => {
+  await auth.initialize();
+});
 
 const features = [
   {
@@ -69,18 +78,34 @@ const steps = [
           Quorum
         </RouterLink>
         <nav class="flex items-center gap-3 sm:gap-6">
-          <RouterLink
-            to="/login"
-            class="landing-nav-muted text-sm font-medium transition-colors hover:text-white"
-          >
-            Sign in
-          </RouterLink>
-          <RouterLink
-            to="/register"
-            class="landing-cta-accent landing-display rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-4 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/25 transition hover:from-cyan-300 hover:to-sky-300 hover:shadow-cyan-500/35"
-          >
-            Get started
-          </RouterLink>
+          <template v-if="auth.isAuthenticated">
+            <RouterLink
+              to="/dashboard"
+              class="landing-nav-muted text-sm font-medium transition-colors hover:text-white"
+            >
+              Dashboard
+            </RouterLink>
+            <RouterLink
+              to="/chat"
+              class="landing-cta-accent landing-display rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-4 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/25 transition hover:from-cyan-300 hover:to-sky-300 hover:shadow-cyan-500/35"
+            >
+              Open briefing chat
+            </RouterLink>
+          </template>
+          <template v-else>
+            <RouterLink
+              to="/login"
+              class="landing-nav-muted text-sm font-medium transition-colors hover:text-white"
+            >
+              Sign in
+            </RouterLink>
+            <RouterLink
+              to="/register"
+              class="landing-cta-accent landing-display rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-4 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/25 transition hover:from-cyan-300 hover:to-sky-300 hover:shadow-cyan-500/35"
+            >
+              Get started
+            </RouterLink>
+          </template>
         </nav>
       </div>
     </header>
@@ -115,12 +140,28 @@ const steps = [
             class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5"
           >
             <RouterLink
+              v-if="auth.isAuthenticated"
+              to="/dashboard"
+              class="landing-cta-on-light landing-display w-full rounded-full bg-white px-8 py-3.5 text-center text-base font-semibold shadow-xl shadow-slate-900/40 transition hover:bg-slate-100 sm:w-auto"
+            >
+              Go to dashboard
+            </RouterLink>
+            <RouterLink
+              v-else
               to="/register"
               class="landing-cta-on-light landing-display w-full rounded-full bg-white px-8 py-3.5 text-center text-base font-semibold shadow-xl shadow-slate-900/40 transition hover:bg-slate-100 sm:w-auto"
             >
               Create free account
             </RouterLink>
             <RouterLink
+              v-if="auth.isAuthenticated"
+              to="/chat"
+              class="landing-cta-ghost w-full rounded-full border border-slate-600 bg-slate-900/40 px-8 py-3.5 text-center text-base font-semibold backdrop-blur-sm transition hover:border-slate-500 hover:bg-slate-800/60 sm:w-auto"
+            >
+              Open briefing chat
+            </RouterLink>
+            <RouterLink
+              v-else
               to="/login"
               class="landing-cta-ghost w-full rounded-full border border-slate-600 bg-slate-900/40 px-8 py-3.5 text-center text-base font-semibold backdrop-blur-sm transition hover:border-slate-500 hover:bg-slate-800/60 sm:w-auto"
             >
@@ -216,6 +257,14 @@ const steps = [
             facts, and focused on what helps you sound sharp when the call starts.
           </p>
           <RouterLink
+            v-if="auth.isAuthenticated"
+            to="/chat"
+            class="landing-cta-accent landing-display mt-8 inline-flex rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-10 py-3.5 text-base font-semibold shadow-lg shadow-cyan-500/25 transition hover:from-cyan-300 hover:to-sky-300"
+          >
+            Open briefing chat
+          </RouterLink>
+          <RouterLink
+            v-else
             to="/register"
             class="landing-cta-accent landing-display mt-8 inline-flex rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-10 py-3.5 text-base font-semibold shadow-lg shadow-cyan-500/25 transition hover:from-cyan-300 hover:to-sky-300"
           >
@@ -236,12 +285,22 @@ const steps = [
           </p>
         </div>
         <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
-          <RouterLink to="/login" class="landing-footer-link transition hover:text-cyan-400"
-            >Sign in</RouterLink
-          >
-          <RouterLink to="/register" class="landing-footer-link transition hover:text-cyan-400"
-            >Create account</RouterLink
-          >
+          <template v-if="auth.isAuthenticated">
+            <RouterLink to="/dashboard" class="landing-footer-link transition hover:text-cyan-400"
+              >Dashboard</RouterLink
+            >
+            <RouterLink to="/chat" class="landing-footer-link transition hover:text-cyan-400"
+              >Briefing chat</RouterLink
+            >
+          </template>
+          <template v-else>
+            <RouterLink to="/login" class="landing-footer-link transition hover:text-cyan-400"
+              >Sign in</RouterLink
+            >
+            <RouterLink to="/register" class="landing-footer-link transition hover:text-cyan-400"
+              >Create account</RouterLink
+            >
+          </template>
         </div>
       </div>
     </footer>

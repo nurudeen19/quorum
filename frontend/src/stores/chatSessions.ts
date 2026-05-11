@@ -11,8 +11,11 @@ import type { ConversationListItem } from "@/api/conversations";
 import { ApiError } from "@/api/http";
 
 export interface ChatMessage {
+  id?: string;
   role: "user" | "assistant";
   content: string;
+  /** Thumbs rating for assistant messages (from API after load). */
+  feedback?: "up" | "down" | null;
 }
 
 function defaultDraftAttendees(): AttendeeBriefing[] {
@@ -59,7 +62,12 @@ export const useChatSessionsStore = defineStore("chatSessions", () => {
       activeConversationId.value = res.conversation_id;
       activeMessages.value = res.messages
         .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+        .map((m) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          feedback: m.user_feedback ?? null,
+        }));
     } catch (e) {
       messagesError.value = e instanceof ApiError ? e.message : "Could not load messages.";
       activeMessages.value = [];

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+import { OBSERVABILITY_UI_ENABLED } from "@/lib/features";
 import { useAuthStore } from "@/stores/auth";
 
 const router = createRouter({
@@ -74,6 +75,11 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
+    next({ name: "dashboard" });
+    return;
+  }
+
+  if (to.name === "observability" && !OBSERVABILITY_UI_ENABLED) {
     next({ name: "dashboard" });
     return;
   }

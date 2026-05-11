@@ -5,8 +5,10 @@ import { RouterLink, useRouter } from "vue-router";
 
 import type { AttendeeBriefing, BriefingContext } from "@/api/chat";
 import { streamChat } from "@/api/chat";
+import * as conversationsApi from "@/api/conversations";
 import { ApiError } from "@/api/http";
 import SafeMarkdown from "@/components/SafeMarkdown.vue";
+import { derivePipelineStage } from "@/lib/briefingPipeline";
 import { useAuthStore } from "@/stores/auth";
 import { useChatSessionsStore } from "@/stores/chatSessions";
 
@@ -35,6 +37,7 @@ const {
 const followUp = ref("");
 const loading = ref(false);
 const error = ref("");
+const pipelineStage = ref("Starting…");
 
 const chatScrollArea = ref<HTMLElement | null>(null);
 const followUpInput = ref<HTMLTextAreaElement | null>(null);
@@ -118,6 +121,7 @@ async function submitBriefing() {
   }
 
   loading.value = true;
+  pipelineStage.value = derivePipelineStage(null);
   const userPreview = briefingPreview(ctx);
   activeMessages.value = [{ role: "user", content: userPreview }];
 
@@ -132,6 +136,7 @@ async function submitBriefing() {
         },
         onState: (data: Record<string, unknown>) => {
           lastState = data;
+          pipelineStage.value = derivePipelineStage(data);
         },
         onDone: () => {},
       },
@@ -161,6 +166,7 @@ async function submitFollowUp() {
 
   error.value = "";
   loading.value = true;
+  pipelineStage.value = derivePipelineStage(null);
   activeMessages.value.push({ role: "user", content: text });
   followUp.value = "";
 
@@ -172,6 +178,7 @@ async function submitFollowUp() {
       {
         onState: (data: Record<string, unknown>) => {
           lastState = data;
+          pipelineStage.value = derivePipelineStage(data);
         },
       },
     );
@@ -221,6 +228,19 @@ async function deleteConversation(id: string, ev: Event) {
 async function logout() {
   await auth.logout();
   router.push({ name: "login" });
+}
+
+async function submitMessageFeedback(index: number, vote: "up" | "down") {
+  const m = activeMessages.value[index];
+  if (!m || m.role !== "assistant" || !m.id) return;
+  const next = m.feedback === vote ? null : vote;
+  error.value = "";
+  try {
+    await conversationsApi.patchMessageFeedback(m.id, { feedback: next });
+    m.feedback = next === null ? undefined : next;
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : "Could not save feedback.";
+  }
 }
 
 onMounted(() => {
@@ -481,7 +501,7 @@ const inputClass =
 
             <div
               v-for="(m, index) in activeMessages"
-              :key="'msg-' + index + '-' + (m.content?.length ?? 0)"
+              :key="m.id ?? 'msg-' + index + '-' + (m.content?.length ?? 0)"
               class="flex w-full"
               :class="m.role === 'user' ? 'justify-end' : 'justify-start'"
             >
@@ -500,14 +520,79 @@ const inputClass =
                   {{ m.role === "user" ? "You" : "Assistant" }}
                 </div>
                 <SafeMarkdown :source="m.content" />
+                <div
+                  v-if="m.role === 'assistant' && m.id"
+                  class="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-700/60 pt-3"
+                >
+                  <span class="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    Helpful?
+                  </span>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition"
+                    :class="
+                      m.feedback === 'up'
+                        ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200'
+                        : 'border-slate-600/80 bg-slate-800/50 text-slate-400 hover:border-emerald-500/35 hover:text-emerald-200'
+                    "
+                    :aria-pressed="m.feedback === 'up'"
+                    title="Thumbs up"
+                    @click="submitMessageFeedback(index, 'up')"
+                  >
+                    <span class="text-base leading-none" aria-hidden="true">👍</span>
+                    Good
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition"
+                    :class="
+                      m.feedback === 'down'
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-100'
+                        : 'border-slate-600/80 bg-slate-800/50 text-slate-400 hover:border-amber-500/35 hover:text-amber-100'
+                    "
+                    :aria-pressed="m.feedback === 'down'"
+                    title="Thumbs down"
+                    @click="submitMessageFeedback(index, 'down')"
+                  >
+                    <span class="text-base leading-none" aria-hidden="true">👎</span>
+                    Needs work
+                  </button>
+                </div>
               </div>
             </div>
 
             <div v-if="loading && activeMessages.length > 0" class="flex justify-start">
               <div
-                class="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 text-sm text-slate-500 italic ring-1 ring-slate-800/80"
+                class="pipeline-card max-w-[min(100%,42rem)] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/70 px-5 py-4 shadow-lg shadow-cyan-500/5 ring-1 ring-cyan-500/10"
               >
-                Thinking…
+                <div class="flex items-start gap-3">
+                  <div class="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center">
+                    <span
+                      class="absolute h-8 w-8 rounded-full bg-cyan-400/25 blur-md pipeline-pulse"
+                      aria-hidden="true"
+                    />
+                    <span
+                      class="relative flex h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+                    >
+                      <span
+                        class="absolute inset-0 animate-ping rounded-full bg-cyan-400 opacity-40"
+                      />
+                    </span>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-cyan-400/90">
+                      Briefing in progress
+                    </p>
+                    <p class="mt-1 text-sm font-medium text-slate-200">
+                      {{ pipelineStage }}
+                    </p>
+                    <div class="mt-3 flex items-center gap-1" aria-hidden="true">
+                      <span class="pipeline-dot h-1.5 w-1.5 rounded-full bg-cyan-400/90" />
+                      <span class="pipeline-dot h-1.5 w-1.5 rounded-full bg-cyan-400/90" />
+                      <span class="pipeline-dot h-1.5 w-1.5 rounded-full bg-cyan-400/90" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             </template>
@@ -549,5 +634,71 @@ const inputClass =
 <style scoped>
 .app-display {
   font-family: "Outfit", "DM Sans", system-ui, sans-serif;
+}
+
+.pipeline-card {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(17, 24, 39, 0.92) 40%,
+    rgba(12, 74, 110, 0.12) 100%
+  );
+  background-size: 200% 200%;
+  animation: pipeline-shimmer 3.5s ease infinite;
+}
+
+@keyframes pipeline-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.pipeline-pulse {
+  animation: pipeline-glow 2s ease-in-out infinite;
+}
+
+@keyframes pipeline-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.pipeline-dot {
+  animation: pipeline-bounce 1.2s ease-in-out infinite;
+}
+
+.pipeline-dot:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.pipeline-dot:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.pipeline-dot:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+@keyframes pipeline-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
 }
 </style>

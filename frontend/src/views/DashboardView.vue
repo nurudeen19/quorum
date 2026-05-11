@@ -2,6 +2,7 @@
 import { onMounted } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
+import { OBSERVABILITY_UI_ENABLED } from "@/lib/features";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
@@ -66,6 +67,7 @@ async function handleLogout() {
           Briefing chat
         </RouterLink>
         <RouterLink
+          v-if="OBSERVABILITY_UI_ENABLED"
           to="/dashboard/observability"
           class="app-display rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-400 transition hover:bg-slate-800/60 hover:text-white"
           active-class="bg-gradient-to-r from-cyan-500/15 to-sky-500/10 !text-white shadow-inner shadow-cyan-500/10 ring-1 ring-cyan-500/25"
@@ -147,7 +149,7 @@ async function handleLogout() {
           <div class="mt-6 flex flex-wrap items-center gap-4">
             <RouterLink
               to="/chat"
-              class="app-display inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-sky-300"
+              class="app-cta-primary app-display inline-flex items-center justify-center rounded-full bg-gradient-to-r from-cyan-400 to-sky-400 px-6 py-2.5 text-sm font-semibold shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-sky-300"
             >
               Open briefing chat
             </RouterLink>
@@ -177,5 +179,12 @@ async function handleLogout() {
 <style scoped>
 .app-display {
   font-family: "Outfit", "DM Sans", system-ui, sans-serif;
+}
+
+.app-cta-primary {
+  color: #020617 !important;
+}
+.app-cta-primary:hover {
+  color: #020617 !important;
 }
 </style>

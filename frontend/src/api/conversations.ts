@@ -11,7 +11,12 @@ export interface ChatMessageDto {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  user_feedback?: "up" | "down" | null;
   created_at: string;
+}
+
+export interface MessageFeedbackBody {
+  feedback: "up" | "down" | null;
 }
 
 export interface ConversationMessagesResponse {
@@ -35,5 +40,15 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   await apiFetch<void>(
     `/chat/conversations/${encodeURIComponent(conversationId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function patchMessageFeedback(
+  messageId: string,
+  body: MessageFeedbackBody,
+): Promise<ChatMessageDto> {
+  return apiFetch<ChatMessageDto>(
+    `/chat/messages/${encodeURIComponent(messageId)}/feedback`,
+    { method: "PATCH", body: JSON.stringify(body) },
   );
 }
