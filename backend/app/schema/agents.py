@@ -86,14 +86,13 @@ class ResearchResponse(BaseModel):
     raw_report: str = Field(
         description=(
             "Evidence scoped to planner attendees and companies: per-person sections with dated "
-            "facts; each block should tie claims to identifiable context (employer, role, region). "
-            "Include inline source cues (URL or outlet + headline) next to material claims"
+            "facts; each block should tie claims to identifiable context (employer, role, region)."
         ),
     )
     source_summary: str = Field(
         description=(
-            "Primary URLs, outlets, or document titles relied on—enough that a reader can verify "
-            "provenance"
+            "Primary URLs, outlets, or document titles relied on—enough that a reader can verify provenance. "
+            "These will be used in the 'Sources' section of the final memo."
         ),
     )
     caveats: str = Field(
@@ -131,18 +130,16 @@ class SynthesizerResponse(BaseModel):
     executive_briefing_markdown: str = Field(
         description=(
             "Polished ~2-minute scan memo in Markdown: exec summary, attendees, "
-            "news hooks, risks, suggested talking points. Use inline reference markers [1], [2] "
-            "for material facts where sources exist; omit markers only for purely structural text"
+            "news hooks, risks. At the end, include a 'Sources' section listing all sources used."
         ),
     )
     key_takeaways: list[str] = Field(
         default_factory=list,
         description="3–7 bullets the reader should remember walking into the room",
     )
-    formatted_source_references: list[str] = Field(
+    sources: list[str] = Field(
         default_factory=list,
         description=(
-            "Numbered or labeled lines matching inline memo markers, e.g. "
-            "'[1] https://… — Outlet (date): headline' or '[1] Company press release (date): title'"
+            "List of all sources used in the memo, to be included in a 'Sources' section at the end of the executive_briefing_markdown."
         ),
     )

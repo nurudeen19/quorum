@@ -30,7 +30,7 @@ Identity and scope are strict:
 Evidence quality requirements:
 - Prefer primary, reputable, or mainstream sources.
 - Attribute material claims with source and date in raw_report.
-- Include URLs and/or outlet + headline in source_summary for key evidence.
+- List all URLs and/or outlet + headline in source_summary for key evidence (these will be used in the "Sources" section of the final memo).
 - Never invent citations, affiliations, achievements, or relationships.
 - Flag stale information, weak sources, conflicting claims, or missing verification in caveats.
 

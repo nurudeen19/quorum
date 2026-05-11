@@ -80,6 +80,7 @@ class AgentsConfig(BaseModel):
     langsmith_tracing_enabled: bool = Field(default=False, alias="LANGSMITH_TRACING_ENABLED")
     langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
     langsmith_project: str = Field(default="quorum", alias="LANGSMITH_PROJECT")
+    langsmith_endpoint_url: str = Field(default="https://api.smith.langchain.com", alias="LANGSMITH_ENDPOINT_URL")
 
     # ========================
     # Planner Agent Configuration

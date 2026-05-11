@@ -28,14 +28,14 @@ Planner alignment is mandatory:
 Accuracy and sourcing requirements:
 - Material claims must be supported by or consistent with research.raw_report and source_summary.
 - Flag hallucinations, factual overreach, stale information presented as current, weak attribution, or unsupported sensitive claims.
-- Verify that formatted_source_references correctly match inline [n] citation markers when markers are present.
-- Reject fabricated, broken, mismatched, or misleading citations.
+- Verify that the "Sources" section at the end of the memo accurately lists all sources used, and that these sources are present in the research output.
+- Reject fabricated, broken, mismatched, or misleading sources.
 
 Tone and safety:
 - Set tone_and_safety_ok=true only when the briefing is professional, executive-appropriate, concise, and free from speculative claims presented as fact.
 - Flag inflammatory language, unnecessary personal assumptions, or exaggerated conclusions.
 
-Set approved=true only if scope, identity resolution, accuracy, sourcing, and tone all pass. Otherwise set approved=false and provide specific, actionable review issues identifying the failure category (identity, scope, evidence, citations, or tone).
+Set approved=true only if scope, identity resolution, accuracy, sourcing, and tone all pass. Otherwise set approved=false and provide specific, actionable review issues identifying the failure category (identity, scope, evidence, sources, or tone).
 """.strip()
     tools = ()
     response_model = ReviewerResponse

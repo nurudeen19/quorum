@@ -34,9 +34,15 @@ def configure_langsmith_tracing(agents: AgentsConfig) -> None:
         raise StartupConfigurationError(
             "LANGSMITH_TRACING_ENABLED is true but LANGSMITH_API_KEY is missing or empty."
         )
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_API_KEY"] = agents.langsmith_api_key.strip()
-    os.environ["LANGCHAIN_PROJECT"] = agents.langsmith_project
+    from langsmith import Client, configure as langsmith_configure
+    client_kw: dict[str, Any] = {"api_key": agents.langsmith_api_key.strip()}
+    client_kw["api_url"] = agents.langsmith_endpoint_url.strip()
+    client = Client(**client_kw)
+    langsmith_configure(
+        client=client,
+        enabled=True,
+        project_name=agents.langsmith_project,
+    )
     logger.info("langsmith_tracing_enabled", project=agents.langsmith_project)
 
 

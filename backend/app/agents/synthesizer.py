@@ -32,8 +32,7 @@ Output requirements:
 - include attendee and company insights relevant to the meeting goal
 - highlight opportunities, risks, priorities, and suggested talking points
 - maintain a concise, neutral, executive-appropriate tone
-- Use inline [1], [2] citation markers for material factual claims with supporting evidence.
-- Populate formatted_source_references with matching citations using URLs or outlet + title + date when available.
+- At the end, include a "Sources" section listing all sources used, formatted as a bulleted or numbered list.
 - key_takeaways:
 - provide 3–7 high-signal bullets
 - explicitly note missing information or uncertainty instead of guessing
