@@ -10,7 +10,7 @@ from app.core.logging_middleware import LoggingMiddleware
 
 app = create_fastapi_app(
     title="Quorum API",
-    description="FastAPI application with PostgreSQL, JWT auth, and agent orchestration",
+    description="Your pre meeting intelligence assistant. Get into meetings prepared, with concise briefings and action plans.",
     version="1.0.0",
 )
 
