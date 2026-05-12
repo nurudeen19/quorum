@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request, status
 from app.core.rate_limit import limiter
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,7 @@ router = APIRouter()
 )
 @limiter.limit(get_settings().rate_limits.chat_list)
 async def list_my_conversations(
+    request: Request,
     current: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     history: HistoryService = Depends(get_history_service),
@@ -64,6 +65,7 @@ async def list_my_conversations(
 )
 @limiter.limit(get_settings().rate_limits.chat_messages)
 async def get_conversation_messages(
+    request: Request,
     conversation_id: UUID,
     current: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
@@ -89,6 +91,7 @@ async def get_conversation_messages(
 )
 @limiter.limit(get_settings().rate_limits.chat_feedback)
 async def patch_message_feedback(
+    request: Request,
     message_id: UUID,
     body: MessageFeedbackUpdate,
     current: User = Depends(get_current_user),
@@ -117,6 +120,7 @@ async def patch_message_feedback(
 )
 @limiter.limit(get_settings().rate_limits.chat_delete)
 async def delete_my_conversation(
+    request: Request,
     conversation_id: UUID,
     current: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
@@ -144,6 +148,7 @@ async def delete_my_conversation(
 )
 @limiter.limit(get_settings().rate_limits.chat_stream)
 async def chat_stream(
+    request: Request,
     body: ChatStreamRequest,
     current: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
