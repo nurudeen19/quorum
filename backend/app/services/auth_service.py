@@ -8,6 +8,7 @@ from uuid import UUID
 
 import jwt
 import structlog
+import time
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,27 +73,25 @@ class AuthService:
 
     async def register(self, session: AsyncSession, data: UserCreate) -> User:
         """Create an account and queue verification email unless dev auto-verify is on."""
+        start = time.time()
         email = data.email.strip().lower()
         username = data.username.strip()
-
         dup = await session.execute(
             select(User.id).where(or_(User.email == email, User.username == username)).limit(1)
         )
         if dup.first():
+            logger.info("register_duplicate")
             raise UserConflictError(
                 "A user with this email or username already exists.",
             )
-
         verified = self.settings.auth_dev_auto_verify_email
         verification_token: str | None = None
         verification_expires: datetime | None = None
-
         if not verified:
             verification_token = secrets.token_urlsafe(32)
             verification_expires = _utcnow() + timedelta(
                 hours=self.settings.email_verification_expire_hours,
             )
-
         user = User(
             email=email,
             username=username,
@@ -110,21 +109,24 @@ class AuthService:
             raise UserConflictError(
                 "A user with this email or username already exists.",
             ) from exc
-
         await session.refresh(user)
-
         if verification_token:
             await send_verification_email(user.email, verification_token)
-
+        logger.info(
+            "register_success",
+            user_id=str(user.id),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return user
 
     async def login(self, session: AsyncSession, login: str, password: str) -> tuple[str, str]:
         """Validate credentials and return access and refresh JWTs (new refresh session row).
         """
+        start = time.time()
         key = login.strip().lower()
         if not key:
+            logger.info("login_empty_key")
             raise InvalidCredentialsError("Incorrect email, username, or password.")
-
         result = await session.execute(select(User).where(User.email == key))
         user = result.scalar_one_or_none()
         if user is None:
@@ -133,16 +135,23 @@ class AuthService:
             )
             user = result.scalar_one_or_none()
         if user is None or not verify_password(password, user.password_hash):
+            logger.info("login_failed")
             raise InvalidCredentialsError("Incorrect email, username, or password.")
         if not user.is_active:
+            logger.info("login_inactive", user_id=str(user.id))
             raise InvalidCredentialsError("Account is disabled.")
         if not user.is_verified:
+            logger.info("login_unverified", user_id=str(user.id))
             raise EmailNotVerifiedError("Email address is not verified.")
-
         access = create_access_token(user.id, self.settings)
         jti = secrets.token_urlsafe(32)
         refresh = create_refresh_token(user.id, self.settings, jti)
         await self._persist_refresh_row(session, user_id=user.id, jti=jti)
+        logger.info(
+            "login_success",
+            user_id=str(user.id),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return access, refresh
 
     async def refresh(self, session: AsyncSession, refresh_token: str) -> tuple[str, str]:
@@ -241,20 +250,26 @@ class AuthService:
         token: str,
         new_password: str,
     ) -> None:
-        """Apply a new password using the opaque reset token; revokes all refresh sessions."""
+        start = time.time()
         raw = token.strip()
         result = await session.execute(select(User).where(User.password_reset_token == raw))
         user = result.scalar_one_or_none()
         if user is None:
+            logger.info("reset_password_token_not_found")
             raise InvalidTokenError("Invalid reset token.")
         if (
             user.password_reset_expires_at is None
             or user.password_reset_expires_at < _utcnow()
         ):
+            logger.info("reset_password_token_expired", user_id=str(user.id))
             raise InvalidTokenError("Reset link has expired.")
-
         user.password_hash = hash_password(new_password)
         user.password_reset_token = None
         user.password_reset_expires_at = None
         await session.flush()
         await self._revoke_all_refresh_for_user(session, user.id)
+        logger.info(
+            "reset_password_success",
+            user_id=str(user.id),
+            duration_ms=int((time.time() - start) * 1000),
+        )

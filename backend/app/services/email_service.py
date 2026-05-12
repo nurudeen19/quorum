@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+import time
 
 import mailtrap as mt
 import structlog
@@ -12,7 +12,6 @@ from app.config import get_settings
 from app.services.email_render import render_password_reset, render_verify_email
 
 logger = structlog.get_logger(__name__)
-_std_log = logging.getLogger(__name__)
 
 
 async def send_email(
@@ -24,13 +23,11 @@ async def send_email(
 ) -> None:
     """Send multipart email when Mailtrap is configured; otherwise log for local dev."""
     settings = get_settings().app
+    start = time.time()
     if not settings.mailtrap_api_token:
         logger.info(
             "email_skipped_no_provider",
-            to=to_email,
-            subject=subject,
-            text=text_body,
-            html=html_body,
+            duration_ms=int((time.time() - start) * 1000),
         )
         return
 
@@ -48,10 +45,14 @@ async def send_email(
 
     try:
         await asyncio.to_thread(_send)
-    except Exception:
-        _std_log.exception("mailtrap_send_failed", extra={"to": to_email})
+    except Exception as exc:
+        logger.error(
+            "email_send_failed",
+            subject=subject,
+            error=str(exc),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         raise
-    logger.info("email_sent", to=to_email, subject=subject)
 
 
 async def send_verification_email(to_email: str, token: str) -> None:

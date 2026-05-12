@@ -1,20 +1,5 @@
 """Chat orchestration: **conversations** own message threads; users have many conversations.
-
-**Model**
-
-- Every chat message is stored under a :class:`~app.models.conversation.Conversation`.
-- A user may have any number of conversations (separate threads).
-
-**Per request**
-
-- **``conversation_id`` omitted** — New conversation: body must include ``briefing_context``
-  (attendees + goal). The API builds one user message string for the graph and DB.
-- **``conversation_id`` provided** — Continue that thread with free-form ``content`` only;
-  ``briefing_context`` must not be sent.
-
-**Pipeline** (see :meth:`ChatService.begin_user_turn`): resolve or create conversation → load
-formatted history (excluding the new user line) → persist the user message → run the briefing
-graph → persist the assistant reply (:meth:`ChatService.record_assistant_turn`).
+The **briefing graph** runs per turn to produce assistant replies, taking the conversation history as context. The graph state is streamed back to the client for a live-updating UI, and the final assistant reply is persisted to the DB as a new message in the conversation.
 """
 
 from __future__ import annotations
@@ -26,6 +11,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
+import time
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.base import ConversationHistorySnapshot
@@ -132,22 +118,35 @@ class ChatService:
         conversation_id: UUID | None,
     ) -> UUID:
         """Pick the conversation for this message: continue an existing thread or open a new one.
-
-        - ``conversation_id is None`` → insert a new :class:`~app.models.conversation.Conversation`
-          for ``user_id`` and return its id.
-        - ``conversation_id`` set → return it only if a row exists for ``user_id`` (else API 404).
-
         Raises:
             ConversationNotFoundError: No row for this user and id.
         """
+        start = time.time()
         if conversation_id is None:
             conv = await history.create_conversation(session, user_id, title=None)
             await session.flush()
+            logger.info(
+                "chat_resolve_or_create_conversation_new",
+                user_id=str(user_id),
+                conversation_id=str(conv.id),
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return conv.id
-
         conv = await history.get_conversation(session, user_id, conversation_id)
         if conv is None:
+            logger.warning(
+                "chat_resolve_or_create_conversation_not_found",
+                user_id=str(user_id),
+                conversation_id=str(conversation_id),
+                duration_ms=int((time.time() - start) * 1000),
+            )
             raise ConversationNotFoundError(conversation_id)
+        logger.info(
+            "chat_resolve_or_create_conversation_existing",
+            user_id=str(user_id),
+            conversation_id=str(conv.id),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return conv.id
 
     async def begin_user_turn(
@@ -166,6 +165,7 @@ class ChatService:
             ``(conversation_id, conversation_history_text)`` for the graph (history excludes
             ``user_content``, which is passed separately as ``user_message``).
         """
+        start = time.time()
         cid = await self.resolve_or_create_conversation(
             session,
             history,
@@ -181,6 +181,13 @@ class ChatService:
             user_content,
             conversation_title=conversation_title,
         )
+        logger.info(
+            "chat_begin_user_turn",
+            user_id=str(user_id),
+            conversation_id=str(cid),
+            content_preview=user_content[:20],
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return cid, history_text
 
     async def record_assistant_turn(
@@ -192,11 +199,19 @@ class ChatService:
         state: BriefingState,
     ) -> None:
         """Persist assistant reply from a finished briefing state."""
+        start = time.time()
+        reply = assistant_reply_from_briefing_state(state)
         await history.record_message(
             session,
             conversation_id,
             MessageRole.assistant,
-            assistant_reply_from_briefing_state(state),
+            reply,
+        )
+        logger.info(
+            "chat_record_assistant_turn",
+            conversation_id=str(conversation_id),
+            reply_preview=reply[:50],
+            duration_ms=int((time.time() - start) * 1000),
         )
 
     async def invoke_briefing(

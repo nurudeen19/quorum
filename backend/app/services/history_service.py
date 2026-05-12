@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 import structlog
+import time
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,27 +57,50 @@ class HistoryService:
         self, session: AsyncSession, user_id: UUID, title: str | None = None
     ) -> Conversation:
         """Persist a new conversation for the user."""
+        start = time.time()
         conv = Conversation(user_id=user_id, title=title)
         session.add(conv)
         await session.flush()
+        logger.info(
+            "create_conversation",
+            user_id=str(user_id),
+            conversation_id=str(conv.id),
+            title=title,
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return conv
 
     async def get_conversation(
         self, session: AsyncSession, user_id: UUID, conversation_id: UUID
     ) -> Conversation | None:
         """Return conversation if it belongs to the user."""
+        start = time.time()
         stmt = select(Conversation).where(
             Conversation.id == conversation_id,
             Conversation.user_id == user_id,
         )
-        return (await session.execute(stmt)).scalar_one_or_none()
+        result = (await session.execute(stmt)).scalar_one_or_none()
+        logger.info(
+            "get_conversation",
+            user_id=str(user_id),
+            conversation_id=str(conversation_id),
+            found=result is not None,
+            duration_ms=int((time.time() - start) * 1000),
+        )
+        return result
 
     async def get_history(
         self, session: AsyncSession, conversation_id: UUID
     ) -> ConversationHistorySnapshot:
         """Return agent snapshot: optional summary + message tail. Cache enforces max turns on append only."""
+        start = time.time()
         snap = await self._cache.get(conversation_id)
         if snap.messages:
+            logger.info(
+                "get_history_cache_hit",
+                conversation_id=str(conversation_id),
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return snap
 
         conv_summary = await session.scalar(
@@ -99,6 +123,12 @@ class HistoryService:
                 created_at=_ensure_utc(m.created_at),
             )
             await self._cache.append(conversation_id, cm)
+        logger.info(
+            "get_history_db_fallback",
+            conversation_id=str(conversation_id),
+            message_count=len(chronological),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return await self._cache.get(conversation_id)
 
     async def record_message(
@@ -111,6 +141,7 @@ class HistoryService:
         conversation_title: str | None = None,
     ) -> Message:
         """Insert message, update message tail in cache, sync agent summary field into cache."""
+        start = time.time()
         msg = Message(
             conversation_id=conversation_id,
             role=role,
@@ -140,6 +171,13 @@ class HistoryService:
         await self._cache.append(conversation_id, cm)
         await self._sync_agent_summary_to_cache(session, conversation_id)
         await self._maybe_schedule_summary(session, conversation_id)
+        logger.info(
+            "record_message",
+            conversation_id=str(conversation_id),
+            role=str(role),
+            content_preview=content[:100],
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return msg
 
     async def _maybe_schedule_summary(
@@ -262,6 +300,7 @@ class HistoryService:
         limit: int = 100,
     ) -> list[Conversation]:
         """Return the user's conversations, newest activity first."""
+        start = time.time()
         lim = max(1, min(limit, 200))
         stmt = (
             select(Conversation)
@@ -269,7 +308,14 @@ class HistoryService:
             .order_by(Conversation.updated_at.desc())
             .limit(lim)
         )
-        return list((await session.scalars(stmt)).all())
+        rows = list((await session.scalars(stmt)).all())
+        logger.info(
+            "list_conversations_for_user",
+            user_id=str(user_id),
+            count=len(rows),
+            duration_ms=int((time.time() - start) * 1000),
+        )
+        return rows
 
     async def list_messages_for_user(
         self,
@@ -278,15 +324,30 @@ class HistoryService:
         conversation_id: UUID,
     ) -> list[Message] | None:
         """Return messages oldest-first if the conversation belongs to ``user_id``."""
+        start = time.time()
         conv = await self.get_conversation(session, user_id, conversation_id)
         if conv is None:
+            logger.info(
+                "list_messages_for_user_not_found",
+                user_id=str(user_id),
+                conversation_id=str(conversation_id),
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return None
         stmt = (
             select(Message)
             .where(Message.conversation_id == conversation_id)
             .order_by(Message.created_at.asc())
         )
-        return list((await session.scalars(stmt)).all())
+        rows = list((await session.scalars(stmt)).all())
+        logger.info(
+            "list_messages_for_user",
+            user_id=str(user_id),
+            conversation_id=str(conversation_id),
+            count=len(rows),
+            duration_ms=int((time.time() - start) * 1000),
+        )
+        return rows
 
     async def set_message_feedback_for_user(
         self,
@@ -296,18 +357,56 @@ class HistoryService:
         feedback: str | None,
     ) -> Message | None:
         """Set ``user_feedback`` on an assistant message if the conversation is owned by ``user_id``."""
+        import time
+        start = time.time()
         msg = await session.scalar(select(Message).where(Message.id == message_id))
         if msg is None:
+            logger.info(
+                "set_message_feedback_for_user_not_found",
+                user_id=str(user_id),
+                message_id=str(message_id),
+                feedback=feedback,
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return None
         conv = await self.get_conversation(session, user_id, msg.conversation_id)
         if conv is None:
+            logger.info(
+                "set_message_feedback_for_user_conv_not_found",
+                user_id=str(user_id),
+                message_id=str(message_id),
+                feedback=feedback,
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return None
         if msg.role != MessageRole.assistant:
+            logger.info(
+                "set_message_feedback_for_user_not_assistant",
+                user_id=str(user_id),
+                message_id=str(message_id),
+                feedback=feedback,
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return None
         if feedback is not None and feedback not in ("up", "down"):
+            logger.info(
+                "set_message_feedback_for_user_invalid_feedback",
+                user_id=str(user_id),
+                message_id=str(message_id),
+                feedback=feedback,
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return None
         msg.user_feedback = feedback
         await session.flush()
+        logger.info(
+            "set_message_feedback_for_user",
+            user_id=str(user_id),
+            message_id=str(message_id),
+            conversation_id=str(msg.conversation_id),
+            feedback=feedback,
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return msg
 
     async def delete_conversation_for_user(
@@ -317,10 +416,24 @@ class HistoryService:
         conversation_id: UUID,
     ) -> bool:
         """Delete a conversation and its messages if owned by ``user_id``."""
+        import time
+        start = time.time()
         conv = await self.get_conversation(session, user_id, conversation_id)
         if conv is None:
+            logger.info(
+                "delete_conversation_for_user_not_found",
+                user_id=str(user_id),
+                conversation_id=str(conversation_id),
+                duration_ms=int((time.time() - start) * 1000),
+            )
             return False
         await self._cache.clear(conversation_id)
         await session.delete(conv)
         await session.flush()
+        logger.info(
+            "delete_conversation_for_user",
+            user_id=str(user_id),
+            conversation_id=str(conversation_id),
+            duration_ms=int((time.time() - start) * 1000),
+        )
         return True
