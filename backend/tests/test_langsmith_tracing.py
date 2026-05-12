@@ -13,8 +13,8 @@ from app.services.chat_service import build_chat_graph_run_config
 
 
 @pytest.fixture(autouse=True)
-def _clear_langchain_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("LANGCHAIN_TRACING_V2", "LANGCHAIN_API_KEY", "LANGCHAIN_PROJECT"):
+def _clear_LANGSMITH_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in ("LANGSMITH_TRACING_V2", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -31,9 +31,9 @@ def test_configure_langsmith_tracing_sets_env_when_enabled() -> None:
 
     configure_langsmith_tracing(agents)
 
-    assert os.environ["LANGCHAIN_TRACING_V2"] == "true"
-    assert os.environ["LANGCHAIN_API_KEY"] == "ls-test-key"
-    assert os.environ["LANGCHAIN_PROJECT"] == "quorum-dev"
+    assert os.environ["LANGSMITH_TRACING_V2"] == "true"
+    assert os.environ["LANGSMITH_API_KEY"] == "ls-test-key"
+    assert os.environ["LANGSMITH_PROJECT"] == "quorum-dev"
 
 
 def test_configure_langsmith_tracing_noop_when_disabled() -> None:
@@ -44,8 +44,8 @@ def test_configure_langsmith_tracing_noop_when_disabled() -> None:
 
     configure_langsmith_tracing(agents)
 
-    assert "LANGCHAIN_TRACING_V2" not in os.environ
-    assert "LANGCHAIN_API_KEY" not in os.environ
+    assert "LANGSMITH_TRACING_V2" not in os.environ
+    assert "LANGSMITH_API_KEY" not in os.environ
 
 
 def test_build_chat_graph_run_config_includes_user_and_conversation_metadata() -> None:
