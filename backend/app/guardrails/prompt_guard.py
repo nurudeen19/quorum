@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import logging
+import structlog
+logger = structlog.get_logger(__name__)
 import os
 from typing import Any
 
@@ -49,9 +50,9 @@ def setup_prompt_guard(settings=None) -> None:
 
     prev_levels: dict[str, int] = {}
     for name in _NOISY_LOGGERS:
-        log = logging.getLogger(name)
+        log = logger.getLogger(name)
         prev_levels[name] = log.level
-        log.setLevel(logging.ERROR)
+        log.setLevel(logger.ERROR)
 
     try:
         from transformers import pipeline
@@ -65,9 +66,13 @@ def setup_prompt_guard(settings=None) -> None:
             token=token,
         )
         _pipeline("ok", truncation=True, max_length=_MAX_GUARD_MODEL_TOKENS)
+        logger.info("prompt_guard_loaded", model_id=s.model_id, device=s.device)
+    except Exception as exc:
+        logger.error("prompt_guard_load_failed", error=str(exc))
+        raise
     finally:
         for name, level in prev_levels.items():
-            logging.getLogger(name).setLevel(level)
+            logger.getLogger(name).setLevel(level)
 
 
 
@@ -121,8 +126,14 @@ def classify_prompt(text: str, settings=None, *, malicious_threshold: float | No
     try:
         p_mal = _softmax_malicious_probability(text)
     except Exception as exc:
+        logger.error("prompt_guard_failed", error=str(exc))
         return False, f"Prompt guard failed: {exc}"
     if p_mal >= threshold:
+        logger.warning(
+            "malicious_prompt_blocked",
+            probability=p_mal,
+            threshold=threshold,
+        )
         return (
             False,
             "This message was blocked by automated prompt safety checks. Please ask a normal career question without instructions aimed at overriding the assistant.",
