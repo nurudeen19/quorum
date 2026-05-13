@@ -47,6 +47,8 @@ async def list_my_conversations(
 ) -> list[ConversationListItem]:
     """Return the authenticated user's briefing threads, newest ``updated_at`` first."""
     rows = await history.list_conversations_for_user(session, current.id, limit=limit)
+    if not rows:
+        return []
     return [
         ConversationListItem(
             id=r.id,
